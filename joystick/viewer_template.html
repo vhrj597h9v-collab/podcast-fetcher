@@ -31,7 +31,7 @@
 
 <canvas id="c"></canvas>
 <div id="ui">
-  <div class="card"><h1>8 Button Joystick <small>Thumb head · top row tipped 45° to the user · bottom row flat</small></h1></div>
+  <div class="card"><h1>8 Button Joystick <small>Thumb head · Pro Micro inside · top row tipped 45° to the user</small></h1></div>
   <div class="card views" id="views"></div>
   <div class="card">
     <label><input type="checkbox" id="explode"> Exploded</label>
@@ -43,16 +43,18 @@
 <div id="legend" class="card">
   <div class="row"><b>Parts (STL)</b></div>
   <div class="row"><span class="sw" style="background:#2b2b2e"></span> joystick_body — box + grip + base (1×)</div>
-  <div class="row"><span class="sw" style="background:#1f1f22"></span> joystick_back_plate — 84 × 54 × 3 mm, 4× M4 csk (1×)</div>
+  <div class="row"><span class="sw" style="background:#1f1f22"></span> joystick_back_plate — 76 × 44 × 3 mm, Pro Micro rails (1×)</div>
+  <div class="row"><span class="sw" style="background:#1b6b3a"></span> pro_micro_mockup — 33 × 18 mm board envelope, not printed</div>
   <div class="row"><span class="sw" style="background:linear-gradient(90deg,#d81e1e,#f2c800,#1e64d8,#22a83a)"></span> joystick_button_cap — Ø10 × 8 mm (8×)</div>
 </div>
 <div id="specs" class="card mono">
-  <span>panel</span><span>100 × 70 mm</span>
+  <span>panel</span><span>92 × 60 mm</span>
   <span>panel tilt</span><span>10° to thumb</span>
   <span>top row</span><span>45° overhang</span>
   <span>switch</span><span>6 × 6 × 8 mm</span>
   <span>cap</span><span>Ø10 × 8 mm</span>
-  <span>overall</span><span>100 × 109 × 198</span>
+  <span>board</span><span>Pro Micro 33 × 18</span>
+  <span>USB channel</span><span>Ø12 mm</span>
 </div>
 <div id="hint" class="card">drag: orbit · wheel: zoom · shift‑drag / right‑drag: pan</div>
 
@@ -149,6 +151,7 @@ for (const p of SCENE.parts) {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = mesh.receiveShadow = true;
   mesh.userData.name = p.name;
+  if ((params.get("hide") || "").split(",").some(h => h && (p.name === h || (h.endsWith("*") && p.name.startsWith(h.slice(0, -1)))))) mesh.visible = false;
   mesh.userData.explode = new THREE.Vector3().fromArray(p.explode || [0, 0, 0]);
   root.add(mesh); parts.push(mesh);
 }

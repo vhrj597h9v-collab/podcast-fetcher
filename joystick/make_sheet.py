@@ -51,45 +51,47 @@ panel("left", 600, 450, 333, 450, "LEFT SIDE VIEW")
 panel("right", 933, 450, 333, 450, "RIGHT SIDE VIEW")
 panel("back", 1266, 450, 334, 450, "BACK VIEW")
 
-panel("button", 0, 900, 500, 450, "BUTTON DETAIL")
-panel("thumb", 500, 900, 600, 450, "THUMB SIDE VIEW", "top row overhangs the thumb")
+panel("inside", 0, 900, 500, 450, "ELECTRONICS FIT", "back plate removed")
+panel("carrier", 500, 900, 600, 450, "BOARD CARRIER", "back plate with rails, Pro Micro slid in from the side")
 
 # ---- dimensions: 100 mm on the front view (ortho: 500 px / 140 mm, target x=0,z=165) ----
 import json, math
 import numpy as np
 meta = json.load(open(os.path.join(HERE, "out", "meta.json")))
 T = np.array(meta["head_transform"])
-ppm = 500 / 140.0
+HW, HH, HD, HOV = meta["head"]["w"], meta["head"]["h"], meta["head"]["d"], meta["head"]["overhang"]
+ppm = 500 / 130.0
 ox, oy = 600 + 250, 0 + 225
-bx0, bx1 = ox - 50 * ppm, ox + 50 * ppm
-top_px = oy - (max(T[2, 3] + T[2, 2] * 70 + T[2, 1] * 24, T[2, 3] + T[2, 2] * 70 + T[2, 1] * -48) + 6 - 165) * ppm
+bx0, bx1 = ox - HW / 2 * ppm, ox + HW / 2 * ppm
+top_px = oy - (max(T[2, 3] + T[2, 2] * HH + T[2, 1] * HD / 2, T[2, 3] + T[2, 2] * HH + T[2, 1] * (-HD / 2 - HOV)) + 6 - 160) * ppm
 yd = top_px - 30
 d.line([(bx0, top_px - 4), (bx0, yd - 8)], fill=MUTED, width=1)
 d.line([(bx1, top_px - 4), (bx1, yd - 8)], fill=MUTED, width=1)
 arrow_line((bx0, yd), (bx1, yd))
-label((ox, yd - 16), "100 mm", 18)
+label((ox, yd - 16), f"{HW:.0f} mm", 18)
 
 
-# ---- left side view helpers (ortho: 333 px / 130 mm, target y=-20,z=140; screen right = -Y) ----
+# ---- left side view helpers (ortho: 333 px / 125 mm, target y=-16,z=138; screen right = -Y) ----
 def left_view_px(local_yz):
     """head-local (y, z) -> pixel in the LEFT SIDE VIEW panel."""
     p = T @ np.array([0.0, local_yz[0], local_yz[1], 1.0])
-    ppm = 333 / 130.0
-    return (600 + 166.5 - (p[1] + 20) * ppm, 450 + 225 - (p[2] - 140) * ppm)
+    ppm = 333 / 125.0
+    return (600 + 166.5 - (p[1] + 16) * ppm, 450 + 225 - (p[2] - 138) * ppm)
 
 
 # 70 mm panel height, measured along the head behind the back face
-a, b = left_view_px((24 + 10, 0)), left_view_px((24 + 10, 70))
-a0, b0 = left_view_px((24 + 2, 0)), left_view_px((24 + 2, 70))
+a, b = left_view_px((HD / 2 + 10, 0)), left_view_px((HD / 2 + 10, HH))
+a0, b0 = left_view_px((HD / 2 + 2, 0)), left_view_px((HD / 2 + 2, HH))
 d.line([a0, (a[0] - 8 * (a[0] - a0[0]) / abs(a[0] - a0[0] + 1e-9), a[1])], fill=MUTED, width=1)
 d.line([b0, (b[0] - 8 * (b[0] - b0[0]) / abs(b[0] - b0[0] + 1e-9), b[1])], fill=MUTED, width=1)
 arrow_line(a, b)
-label(((a[0] + b[0]) / 2 - 30, (a[1] + b[1]) / 2), "70 mm", 17, anchor="rm")
+label(((a[0] + b[0]) / 2 - 30, (a[1] + b[1]) / 2), f"{HH:.0f} mm", 17, anchor="rm")
 
 # 45 deg between the flat face and the overhanging top-row face
-c = left_view_px((-24, 46))
-up = left_view_px((-24, 46 + 30))
-sl = left_view_px((-24 - 30 * 0.7071, 46 + 30 * 0.7071))
+FF = meta["head"]["flat_face_h"]
+c = left_view_px((-HD / 2, FF))
+up = left_view_px((-HD / 2, FF + 30))
+sl = left_view_px((-HD / 2 - 30 * 0.7071, FF + 30 * 0.7071))
 d.line([c, up], fill=MUTED, width=1)
 d.line([c, sl], fill=MUTED, width=1)
 r = 30
@@ -103,7 +105,7 @@ mid = math.radians((lo + hi) / 2)
 label((c[0] + (r + 22) * math.cos(mid), c[1] + (r + 22) * math.sin(mid)), "45°", 18)
 
 # ---- button detail dims ----
-label((250, 900 + 420), "Ø10 mm cap · 8 mm tall · Ø14 bezel · fits 6×6×8 mm tactile switch", 15, color=MUTED)
+label((250, 900 + 420), "Pro Micro on plate rails · 12 mm wiring space behind the pins", 14, color=MUTED)
 
 # ---- features panel ----
 x, y = 1100, 900
@@ -113,28 +115,29 @@ feat = [
     "8 momentary tactile push buttons (6×6×8 mm)",
     "Panel faces the user, tilted 10° down to the thumb",
     "Top row overhangs, tipped 45° towards the user",
-    "Bottom row flat at 0° on the front face",
-    "Ergonomic curved grip, rounded head (R6 edges)",
-    "Designed for FDM printing, 3 mm shell walls",
-    "M4 countersunk mounting: 4× base, 4× back plate",
-    "100 × 70 mm button panel, Ø8 mm wiring channel",
+    "Bottom row flat at 0°, 18 mm up for thumb reach",
+    "Pro Micro (ATmega32U4) rides on rails inside the head",
+    "Micro-USB cable runs down a Ø12 channel in the shaft",
+    "Compact 92 × 60 × 36 mm head, R5 rounded edges",
+    "FDM: 3 mm walls, M4 countersunk base and plate",
     "Rear access plate on 4 M4 screw bosses",
 ]
 for i, t in enumerate(feat):
     d.text((x + 24, y + 58 + i * 34), "•", fill=FG, font=f(17))
     d.text((x + 44, y + 58 + i * 34), t, fill=FG, font=f(17))
-d.text((x + 18, y + 410), "Overall: 100 × 109 × 198 mm (base plate Ø72)", fill=MUTED, font=f(15))
+bb = np.array(meta["bounds"]); ext = bb[1] - bb[0]
+d.text((x + 18, y + 410), f"Overall: {ext[0]:.0f} × {ext[1]:.0f} × {ext[2]:.0f} mm (base plate Ø72)", fill=MUTED, font=f(15))
 
 # ---- exploded + parts panel ----
-panel("exploded", 0, 1350, 700, 450, "EXPLODED VIEW", "back plate and caps lifted")
+panel("thumb", 0, 1350, 700, 450, "THUMB SIDE VIEW", "top row overhangs the thumb")
 x, y = 700, 1350
 d.rectangle([x, y, W - 1, y + 449], outline=LINE, width=2)
 d.text((x + 18, y + 14), "PRINTABLE PARTS (STL)", fill=FG, font=f(22, True))
 rows = [
     ("joystick_body.stl", "1×", "head + grip + base, one piece. Print upright on the base; supports under the head."),
-    ("joystick_back_plate.stl", "1×", "84 × 54 × 3 mm, 4× M4 countersunk. Print flat."),
+    ("joystick_back_plate.stl", "1×", "76 × 44 × 3 mm with Pro Micro rails, 4× M4 countersunk. Print flat, rails up."),
     ("joystick_button_cap.stl", "8×", "Ø10 × 8 mm head, Ø9.8 stem, Ø3.6 plunger socket. Print head down."),
-    ("joystick_assembly.stl", "—", "everything assembled, preview only."),
+    ("pro_micro_mockup.stl", "—", "board envelope for fit checks in your slicer, not printed."),
 ]
 yy = y + 60
 for name, qty, desc in rows:
@@ -143,8 +146,10 @@ for name, qty, desc in rows:
     d.text((x + 300, yy), desc, fill=MUTED, font=f(14))
     yy += 40
 notes = [
-    "Hardware: 8× 6×6×8 mm tactile switches, 8× M4×8 countersunk screws (4 base, 4 plate),",
-    "M4 tap or heat-set inserts in the four Ø3.3 bosses, cable through the Ø8 grip channel.",
+    "Hardware: HiLetgo Pro Micro (ATmega32U4), 8× 6×6×8 mm tactile switches, 8× M4×8 countersunk",
+    "screws (4 base, 4 plate), M4 tap or heat-set inserts in the four Ø3.3 bosses.",
+    "Wiring: solder leads straight to the pins (12 mm behind the board; Dupont housings don't fit).",
+    "Feed the micro-USB plug down the Ø12 channel; it exits the base groove at the back.",
     "Suggested print: 0.2 mm layers, 3 walls, 20 % infill, PETG or ABS for the grip.",
     "Model source: build_joystick.py (parametric, trimesh + manifold). Edit, re-run, re-slice.",
 ]

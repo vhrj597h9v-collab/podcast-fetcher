@@ -40,19 +40,20 @@ SEG = 48  # segments per full circle
 # --------------------------------------------------------------------------
 # Parameters
 # --------------------------------------------------------------------------
-BOX_W = 100.0          # X, panel width
-BOX_H = 70.0           # panel height (flat face + chamfer rise)
-BOX_D = 48.0           # Y, depth of the main head block
-OVERHANG = 24.0        # the top row face overhangs the flat face by this much, tipped 45 deg
+BOX_W = 92.0           # X, panel width (4 x 20 mm pitch + margins)
+BOX_H = 60.0           # panel height (flat face + overhang rise)
+BOX_D = 36.0           # Y, depth of the main head block — sized around the Pro Micro stack:
+                       #   3 wall + 6 switch/legs + 7 wiring gap + 3 USB jack + 1.6 PCB + 12 pins/wires + 3 plate
+OVERHANG = 20.0        # the top row face overhangs the flat face by this much, tipped 45 deg
                        # down towards the user's thumb (rise == run)
-EDGE_R = 6.0           # fillet radius on every head edge
+EDGE_R = 5.0           # fillet radius on every head edge
 WALL = 3.0             # shell wall thickness
 PANEL_TILT = 10.0      # extra tilt of the whole head down towards the thumb (deg)
 
-BUTTON_PITCH = 22.0
-BUTTON_X = [(-1.5 + i) * BUTTON_PITCH for i in range(4)]   # -33, -11, 11, 33
-FLAT_FACE_H = BOX_H - OVERHANG                             # 46: height of the flat front face
-FLAT_ROW_Z = 23.0                                          # bottom row, centred on the flat face
+BUTTON_PITCH = 20.0
+BUTTON_X = [(-1.5 + i) * BUTTON_PITCH for i in range(4)]   # -30, -10, 10, 30
+FLAT_FACE_H = BOX_H - OVERHANG                             # 40: height of the flat front face
+FLAT_ROW_Z = 18.0                                          # bottom row, low on the flat face for thumb reach
 TOP_ROW_MID = (-BOX_D / 2 - OVERHANG / 2, FLAT_FACE_H + OVERHANG / 2)  # (y, z) top row, mid-face
 TOP_ROW_TILT = 135.0                                       # normal points down + towards the user
 
@@ -70,8 +71,20 @@ M4_TAP_D = 3.3
 M4_CSK_D = 9.0
 BOSS = 8.0
 PLATE_T = 3.0
-PLATE_MARGIN = 8.0     # plate inset from the head outline
-LEDGE = 5.0            # ledge behind the plate opening
+PLATE_MARGIN = 7.5     # plate inset from the head outline
+LEDGE = 4.0            # ledge behind the plate opening
+
+# Controller: HiLetgo Pro Micro (ATmega32U4), 33 x 18 mm PCB, micro-USB on a short edge.
+# Mounted PCB-parallel to the back plate, USB jack pointing down at the grip channel,
+# header pins facing the plate with BOARD_STANDOFF of wiring room behind them.
+PCB_L = 33.0
+PCB_W = 18.0
+PCB_T = 1.6
+PCB_CLEAR = 0.3        # groove clearance on width and thickness
+BOARD_STANDOFF = 12.0  # PCB back face -> plate inner face (pins + wires live here)
+BOARD_Z0 = 13.0        # head-local z of the PCB bottom edge (USB end); rails clear the plate ledge
+RAIL_W = 4.0
+RAIL_GROOVE = 1.3      # groove depth into each rail
 
 GRIP_H = 120.0         # base top -> head bottom
 GRIP_ELLIP = 0.92      # cross-section: rx = r * ellip (deeper than wide, like a real stick)
@@ -80,12 +93,16 @@ COLLAR_H = 14.0
 BASE_R = 36.0
 BASE_T = 6.0
 BASE_PCD = 58.0
-CABLE_D = 8.0
+CABLE_D = 12.0         # channel must pass a micro-USB plug (~7 x 11 mm overmould)
+BASE_GROOVE_W = 9.0    # cable groove across the underside of the base, out the back
+BASE_GROOVE_D = 3.5
 
 TOP_ROW_COLORS = ["#d81e1e", "#f2f2f2", "#1e64d8", "#1a1a1a"]      # red white blue black
 BOTTOM_ROW_COLORS = ["#f2c800", "#22a83a", "#f07f16", "#8a8a8a"]   # yellow green orange grey
 BODY_COLOR = "#252528"
 PLATE_COLOR = "#1f1f22"
+PCB_COLOR = "#1b6b3a"
+PIN_COLOR = "#d9d9d9"
 
 
 # --------------------------------------------------------------------------
@@ -266,10 +283,49 @@ def head_parts():
     return outer, cavity, additions, cuts
 
 
+def pcb_plane_y():
+    """head-local y of the PCB front face (component side)."""
+    return BOX_D / 2 - PLATE_T - BOARD_STANDOFF - PCB_T
+
+
 def build_back_plate():
     ow, oh = BOX_W - 2 * PLATE_MARGIN - 0.4, BOX_H - 2 * PLATE_MARGIN - 0.4   # 0.2 mm clearance
     plate = tbox(extents=[ow, PLATE_T, oh])
     plate.apply_translation([0, BOX_D / 2 - PLATE_T / 2, BOX_H / 2])
+
+    # Two horizontal rails grip the Pro Micro's short edges (the long edges carry the
+    # header plastic, so they stay free). The board slides in along +X with the plate
+    # off, pins towards the plate; a wall stops it at -X and a 0.5 mm bump at +X keeps
+    # it from sliding back out. The bottom rail is notched for the micro-USB jack.
+    y_plate_in = BOX_D / 2 - PLATE_T
+    y_pcb = pcb_plane_y()
+    c = PCB_CLEAR / 2
+    y_front = y_pcb - c - 1.5                    # front lip outer face
+    rail_x = PCB_W / 2 + 2.0
+    rails = []
+    for edge_z, sz in ((BOARD_Z0, -1), (BOARD_Z0 + PCB_L, +1)):
+        lip_f, lip_b, floor_t = 1.3, 1.0, 1.15   # front lip, back lip (under the headers), floor
+        z_lo = edge_z - (floor_t if sz < 0 else lip_f)
+        z_hi = edge_z + (lip_f if sz < 0 else floor_t)
+        body = tbox(extents=[2 * rail_x, y_plate_in + 0.5 - y_front, z_hi - z_lo])
+        body.apply_translation([0, (y_plate_in + 0.5 + y_front) / 2, (z_lo + z_hi) / 2])
+        # slot for the PCB edge, open towards the board
+        slot = tbox(extents=[2 * rail_x + 4, PCB_T + PCB_CLEAR, 10])
+        slot.apply_translation([0, y_pcb + PCB_T / 2, edge_z + sz * c - sz * 5])
+        # trim the back lip to lip_b so the header plastic (1.25 mm from the edge) clears it
+        trim = tbox(extents=[2 * rail_x + 4, y_plate_in + 2 - (y_pcb + PCB_T + c), 10])
+        trim.apply_translation([0, (y_plate_in + 2 + y_pcb + PCB_T + c) / 2, edge_z - sz * lip_b - sz * 5])
+        rail = difference(body, slot, trim)
+        if sz < 0:                                # USB jack notch, front side only
+            notch = tbox(extents=[10.0, y_pcb + 0.1 - (y_front - 1), 20])
+            notch.apply_translation([0, (y_pcb + 0.1 + y_front - 1) / 2, edge_z])
+            rail = difference(rail, notch)
+        stop = tbox(extents=[rail_x - (PCB_W / 2 + c) + 0.5, y_plate_in + 0.5 - y_front, z_hi - z_lo])
+        stop.apply_translation([-(PCB_W / 2 + c) - stop.extents[0] / 2 + 0.0, (y_plate_in + 0.5 + y_front) / 2, (z_lo + z_hi) / 2])
+        bump = tbox(extents=[1.0, PCB_T + PCB_CLEAR, 0.5 + 0.2])
+        bump.apply_translation([PCB_W / 2 + c + 0.7, y_pcb + PCB_T / 2, edge_z - sz * c - sz * (0.5 + 0.2) / 2 + sz * 0.2])
+        rails += [rail, stop, bump]
+    plate = union(plate, *rails)
     holes = []
     for bx, bz in plate_hole_points():
         h = csk_hole(M4_CLEAR_D, M4_CSK_D, PLATE_T + 1, 0)
@@ -277,6 +333,26 @@ def build_back_plate():
         h.apply_translation([bx, BOX_D / 2, bz])
         holes.append(h)
     return difference(plate, *holes)
+
+
+def build_board_mockup():
+    """Pro Micro envelope in head-local coords: PCB, micro-USB jack, header plastic and
+    pin envelopes. Not printable — for fit checks and the viewer only."""
+    y0 = pcb_plane_y()
+    pcb = tbox(extents=[PCB_W, PCB_T, PCB_L])
+    pcb.apply_translation([0, y0 + PCB_T / 2, BOARD_Z0 + PCB_L / 2])
+    jack = tbox(extents=[7.5, 2.8, 6.0])                       # micro-USB, hangs 1 mm past the edge
+    jack.apply_translation([0, y0 - 1.4, BOARD_Z0 - 1 + 3])
+    parts = [pcb, jack]
+    pins = []
+    for sx in (-1, 1):
+        hp = tbox(extents=[2.54, 2.5, 12 * 2.54])                # header plastic, pins side
+        hp.apply_translation([sx * (PCB_W / 2 - 1.27 - 0.4), y0 + PCB_T + 1.25, BOARD_Z0 + 1.5 + 6 * 2.54])
+        pin = tbox(extents=[0.7, 6.0, 12 * 2.54 - 0.5])
+        pin.apply_translation([sx * (PCB_W / 2 - 1.27 - 0.4), y0 + PCB_T + 2.5 + 3.0, BOARD_Z0 + 1.5 + 6 * 2.54])
+        parts.append(hp)
+        pins.append(pin)
+    return union(*parts), union(*pins)
 
 
 def build_button_cap():
@@ -302,7 +378,7 @@ def grip_spine(t):
 
 def grip_radius(t):
     knots = [0.00, 0.10, 0.25, 0.48, 0.65, 0.80, 0.92, 1.00]
-    radii = [21.5, 19.0, 18.5, 21.5, 20.0, 16.5, 17.5, 19.0]
+    radii = [21.5, 19.0, 18.5, 21.5, 20.0, 16.5, 17.0, 17.5]
     r = np.interp(t, knots, radii)
     k = 9
     pad = np.pad(r, (k // 2, k // 2), mode="edge")
@@ -335,9 +411,11 @@ def build_grip_parts():
         h.apply_translation([BASE_PCD / 2 * math.cos(a), BASE_PCD / 2 * math.sin(a), 0])
         base_holes.append(h)
 
-    tc = np.linspace(-0.02, 1.12, 100)      # wiring channel, base underside -> head cavity
+    tc = np.linspace(-0.07, 1.12, 100)      # USB channel, through the base -> head cavity
     channel = sweep(grip_spine(tc), np.full(len(tc), CABLE_D / 2), ellip=1.0, sections=32)
-    return [grip, collar, base], knurls + base_holes + [channel]
+    groove = tbox(extents=[BASE_GROOVE_W, BASE_R + 2, BASE_GROOVE_D + 1])   # cable groove out the back
+    groove.apply_translation([0, (BASE_R + 2) / 2, -BASE_T + BASE_GROOVE_D / 2 - 0.5])
+    return [grip, collar, base], knurls + base_holes + [channel, groove]
 
 
 # --------------------------------------------------------------------------
@@ -345,7 +423,7 @@ def build_grip_parts():
 # --------------------------------------------------------------------------
 def head_transform():
     top = grip_spine(np.array([1.0]))[0]
-    return translation_matrix(top + [0, -4.0, 0]) @ rotation_matrix(math.radians(PANEL_TILT), [1, 0, 0])
+    return translation_matrix(top) @ rotation_matrix(math.radians(PANEL_TILT), [1, 0, 0])
 
 
 def stl_b64(mesh):
@@ -372,21 +450,34 @@ def main():
     body = difference(body, *cuts, *grip_cuts)
 
     plate = tf(build_back_plate(), T)
+    board, pins = build_board_mockup()
+    board, pins = tf(board, T), tf(pins, T)
     cap = build_button_cap()
     caps = [(tf(cap, T @ m), c, T @ m) for m, c in zip(button_frames(), TOP_ROW_COLORS + BOTTOM_ROW_COLORS)]
 
+    plate_explode = (T[:3, :3] @ [0, 1, 0] * 40).tolist()
     parts = [("body", body, BODY_COLOR, [0, 0, 0]),
-             ("back_plate", plate, PLATE_COLOR, (T[:3, :3] @ [0, 1, 0] * 36).tolist())]
+             ("back_plate", plate, PLATE_COLOR, plate_explode),
+             ("board", board, PCB_COLOR, plate_explode),
+             ("board_pins", pins, PIN_COLOR, plate_explode)]
     parts += [(f"cap_{i}", m, c, (fr[:3, :3] @ [0, 0, 1] * 14).tolist()) for i, (m, c, fr) in enumerate(caps)]
 
     for name, mesh, _, _ in parts:
         assert mesh.is_watertight, f"{name} is not watertight"
         assert mesh.is_volume, f"{name} is not a valid volume"
 
+    # fit checks: the board envelope must not collide with the body or the plate rails
+    for name, other in (("body", body), ("plate", plate)):
+        for bname, bm in (("board", board), ("pins", pins)):
+            hit = trimesh.boolean.intersection([bm, other], engine="manifold")
+            assert hit.is_empty or hit.volume < 0.05, f"{bname} collides with {name}: {hit.volume:.2f} mm3"
+    print("fit check: board and pins clear the body and plate rails")
+
     body.export(os.path.join(OUT, "joystick_body.stl"))
     plate.export(os.path.join(OUT, "joystick_back_plate.stl"))
     cap.export(os.path.join(OUT, "joystick_button_cap.stl"))
-    assembly = trimesh.util.concatenate([m for _, m, _, _ in parts])
+    trimesh.util.concatenate([board, pins]).export(os.path.join(OUT, "pro_micro_mockup.stl"))
+    assembly = trimesh.util.concatenate([m for n, m, _, _ in parts if not n.startswith("board")])
     assembly.export(os.path.join(OUT, "joystick_assembly.stl"))
 
     scene = {
@@ -402,12 +493,14 @@ def main():
                  "panel_tilt": PANEL_TILT},
         "bounds": assembly.bounds.tolist(),
         "buttons": [(T @ m)[:3, 3].tolist() for m in button_frames()],
+        "board": {"pcb": [PCB_L, PCB_W, PCB_T], "standoff": BOARD_STANDOFF, "z0": BOARD_Z0,
+                  "pcb_plane_y": pcb_plane_y(), "cable_d": CABLE_D},
     }
     with open(os.path.join(OUT, "meta.json"), "w") as f:
         json.dump(meta, f, indent=1)
 
     print(f"assembly bounds (mm): min {assembly.bounds[0].round(1)}  max {assembly.bounds[1].round(1)}")
-    for name, mesh, _, _ in parts[:3]:
+    for name, mesh, _, _ in parts[:4]:
         print(f"  {name:12s} {len(mesh.faces):6d} tris  volume {mesh.volume / 1000:.1f} cm3")
     print("done ->", OUT)
 
