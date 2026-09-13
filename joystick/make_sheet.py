@@ -42,8 +42,8 @@ def label(xy, text, size=16, anchor="mm", color=DIM):
 
 # ---------------- layout ----------------
 panel("hero", 0, 0, 600, 900, "8 BUTTON JOYSTICK")
-d.text((18, 44), "TOP ROW TIPPED 45° TO THE THUMB", fill=MUTED, font=f(15))
-d.text((18, 64), "BOTTOM ROW FLAT", fill=MUTED, font=f(15))
+d.text((18, 44), "6 THUMB BUTTONS · TOP ROW TIPPED 45°", fill=MUTED, font=f(15))
+d.text((18, 64), "2 TRIGGER BUTTONS UNDER THE HEAD", fill=MUTED, font=f(15))
 
 panel("front", 600, 0, 500, 450, "FRONT VIEW")
 panel("top", 1100, 0, 500, 450, "TOP VIEW")
@@ -51,8 +51,8 @@ panel("left", 600, 450, 333, 450, "LEFT SIDE VIEW")
 panel("right", 933, 450, 333, 450, "RIGHT SIDE VIEW")
 panel("back", 1266, 450, 334, 450, "BACK VIEW")
 
-panel("inside", 0, 900, 500, 450, "ELECTRONICS FIT", "back plate removed")
-panel("carrier", 500, 900, 600, 450, "BOARD CARRIER", "back plate with rails, Pro Micro slid in from the side")
+panel("inside", 0, 900, 500, 450, "ELECTRONICS FIT", "back plate removed, Pro Micro in the neck pocket")
+panel("trigger", 500, 900, 600, 450, "TRIGGER BUTTONS", "index finger, from below")
 
 # ---- dimensions: 100 mm on the front view (ortho: 500 px / 140 mm, target x=0,z=165) ----
 import json, math
@@ -60,10 +60,11 @@ import numpy as np
 meta = json.load(open(os.path.join(HERE, "out", "meta.json")))
 T = np.array(meta["head_transform"])
 HW, HH, HD, HOV = meta["head"]["w"], meta["head"]["h"], meta["head"]["d"], meta["head"]["overhang"]
-ppm = 500 / 130.0
+FRONT_SPAN, FRONT_Z = 110.0, 140.0      # must match the "front" shot in render_views.js
+ppm = 500 / FRONT_SPAN
 ox, oy = 600 + 250, 0 + 225
 bx0, bx1 = ox - HW / 2 * ppm, ox + HW / 2 * ppm
-top_px = oy - (max(T[2, 3] + T[2, 2] * HH + T[2, 1] * HD / 2, T[2, 3] + T[2, 2] * HH + T[2, 1] * (-HD / 2 - HOV)) + 6 - 160) * ppm
+top_px = oy - (max(T[2, 3] + T[2, 2] * HH + T[2, 1] * HD / 2, T[2, 3] + T[2, 2] * HH + T[2, 1] * (-HD / 2 - HOV)) + 6 - FRONT_Z) * ppm
 yd = top_px - 30
 d.line([(bx0, top_px - 4), (bx0, yd - 8)], fill=MUTED, width=1)
 d.line([(bx1, top_px - 4), (bx1, yd - 8)], fill=MUTED, width=1)
@@ -105,7 +106,7 @@ mid = math.radians((lo + hi) / 2)
 label((c[0] + (r + 22) * math.cos(mid), c[1] + (r + 22) * math.sin(mid)), "45°", 18)
 
 # ---- button detail dims ----
-label((250, 900 + 420), "Pro Micro on plate rails · 12 mm wiring space behind the pins", 14, color=MUTED)
+label((250, 900 + 420), "board drops into the neck from the back · USB jack over the Ø12 channel", 14, color=MUTED)
 
 # ---- features panel ----
 x, y = 1100, 900
@@ -113,14 +114,14 @@ d.rectangle([x, y, W - 1, y + 449], outline=LINE, width=2)
 d.text((x + 18, y + 14), "FEATURES", fill=FG, font=f(22, True))
 feat = [
     "8 momentary tactile push buttons (6×6×8 mm)",
-    "Panel faces the user, tilted 10° down to the thumb",
-    "Top row overhangs, tipped 45° towards the user",
-    "Bottom row flat at 0°, 18 mm up for thumb reach",
-    "Pro Micro (ATmega32U4) rides on rails inside the head",
+    "6 on the head for the thumb, 16 mm pitch, 1 mm margins",
+    "Top row of 3 overhangs, tipped 45° towards the user",
+    "2 on a trigger bump under the head for the index finger",
+    "Head 58 × 37 × 34 mm, panel tilted 10° to the thumb",
+    "Pro Micro sits in the neck pocket under the head",
     "Micro-USB cable runs down a Ø12 channel in the shaft",
-    "Compact 92 × 60 × 36 mm head, R5 rounded edges",
-    "FDM: 3 mm walls, M4 countersunk base and plate",
-    "Rear access plate on 4 M4 screw bosses",
+    "One back plate with a tab covers head and neck pocket",
+    "FDM: 3 mm walls, R5 edges, M4 countersunk mounting",
 ]
 for i, t in enumerate(feat):
     d.text((x + 24, y + 58 + i * 34), "•", fill=FG, font=f(17))
@@ -135,7 +136,7 @@ d.rectangle([x, y, W - 1, y + 449], outline=LINE, width=2)
 d.text((x + 18, y + 14), "PRINTABLE PARTS (STL)", fill=FG, font=f(22, True))
 rows = [
     ("joystick_body.stl", "1×", "head + grip + base, one piece. Print upright on the base; supports under the head."),
-    ("joystick_back_plate.stl", "1×", "76 × 44 × 3 mm with Pro Micro rails, 4× M4 countersunk. Print flat, rails up."),
+    ("joystick_back_plate.stl", "1×", "43 × 22 head cover + 23 × 55 neck tab, 3 mm, 4× M4 countersunk. Print flat."),
     ("joystick_button_cap.stl", "8×", "Ø10 × 8 mm head, Ø9.8 stem, Ø3.6 plunger socket. Print head down."),
     ("pro_micro_mockup.stl", "—", "board envelope for fit checks in your slicer, not printed."),
 ]
@@ -148,8 +149,8 @@ for name, qty, desc in rows:
 notes = [
     "Hardware: HiLetgo Pro Micro (ATmega32U4), 8× 6×6×8 mm tactile switches, 8× M4×8 countersunk",
     "screws (4 base, 4 plate), M4 tap or heat-set inserts in the four Ø3.3 bosses.",
-    "Wiring: solder leads straight to the pins (12 mm behind the board; Dupont housings don't fit).",
-    "Feed the micro-USB plug down the Ø12 channel; it exits the base groove at the back.",
+    "Wiring: solder leads to the pins, drop the board into the neck pocket from the back (ribs hold it),",
+    "feed the micro-USB plug down the Ø12 channel; it exits the base groove at the back.",
     "Suggested print: 0.2 mm layers, 3 walls, 20 % infill, PETG or ABS for the grip.",
     "Model source: build_joystick.py (parametric, trimesh + manifold). Edit, re-run, re-slice.",
 ]

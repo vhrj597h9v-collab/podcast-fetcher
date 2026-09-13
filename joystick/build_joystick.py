@@ -2,18 +2,23 @@
 """
 Parametric 8-button joystick — model builder.
 
-Thumb-operated head: the 100 x 70 mm button panel stands vertical and faces the
-user (tilted a further PANEL_TILT degrees down towards the thumb).  The bottom
-row of four buttons sits on the flat panel; the top row sits on an upper block
+Thumb-operated head, 6 buttons: the button panel stands vertical and faces the
+user (tilted a further PANEL_TILT degrees down towards the thumb). The bottom
+row of three sits on the flat face; the top row of three sits on an upper block
 that overhangs the flat face, its face tipped 45 deg down towards the user so the
-thumb reaches it from below.
-Every edge of the head, base and grip is rounded.
+thumb reaches it from below. Two more buttons sit on a trigger bump under the
+front of the head, facing down and forward for the index finger.
+
+The Pro Micro lives in a pocket in the neck of the grip, just under the head,
+USB jack pointing down the cable channel. One back plate covers the head opening
+and, with a tab, the neck pocket. Every edge is rounded.
 
 Exports (all mm, Z up, -Y is towards the user):
 
   out/joystick_body.stl        head + grip + base, one FDM print
-  out/joystick_back_plate.stl  rear access plate, 4x M4 countersunk
+  out/joystick_back_plate.stl  rear access plate with neck tab, 4x M4 countersunk
   out/joystick_button_cap.stl  one button cap (print 8)
+  out/pro_micro_mockup.stl     board envelope for fit checks (not printed)
   out/joystick_assembly.stl    everything assembled, for preview only
   out/scene.json               coloured parts + explode vectors for the web viewer
   out/meta.json                key transforms for the spec-sheet annotations
@@ -40,23 +45,8 @@ SEG = 48  # segments per full circle
 # --------------------------------------------------------------------------
 # Parameters
 # --------------------------------------------------------------------------
-BOX_W = 92.0           # X, panel width (4 x 20 mm pitch + margins)
-BOX_H = 60.0           # panel height (flat face + overhang rise)
-BOX_D = 36.0           # Y, depth of the main head block — sized around the Pro Micro stack:
-                       #   3 wall + 6 switch/legs + 7 wiring gap + 3 USB jack + 1.6 PCB + 12 pins/wires + 3 plate
-OVERHANG = 20.0        # the top row face overhangs the flat face by this much, tipped 45 deg
-                       # down towards the user's thumb (rise == run)
-EDGE_R = 5.0           # fillet radius on every head edge
-WALL = 3.0             # shell wall thickness
-PANEL_TILT = 10.0      # extra tilt of the whole head down towards the thumb (deg)
-
-BUTTON_PITCH = 20.0
-BUTTON_X = [(-1.5 + i) * BUTTON_PITCH for i in range(4)]   # -30, -10, 10, 30
-FLAT_FACE_H = BOX_H - OVERHANG                             # 40: height of the flat front face
-FLAT_ROW_Z = 18.0                                          # bottom row, low on the flat face for thumb reach
-TOP_ROW_MID = (-BOX_D / 2 - OVERHANG / 2, FLAT_FACE_H + OVERHANG / 2)  # (y, z) top row, mid-face
-TOP_ROW_TILT = 135.0                                       # normal points down + towards the user
-
+BUTTON_PITCH = 16.0    # bezel is 14 mm, so 2 mm between bezels
+BUTTON_X = [(-1 + i) * BUTTON_PITCH for i in range(3)]     # -16, 0, 16
 CAP_D = 10.0           # button cap diameter (spec: 10 mm)
 CAP_H = 8.0            # cap height above bezel (spec: 8 mm)
 BEZEL_D = 14.0
@@ -66,25 +56,47 @@ SWITCH_POCKET = 6.8    # 6x6 tactile switch, +0.8 clearance
 SWITCH_POCKET_DEPTH = 1.5
 PLUNGER_SOCKET_D = 3.6
 
+EDGE_R = 5.0           # fillet radius on every head edge
+WALL = 3.0             # shell wall thickness
+PANEL_TILT = 10.0      # extra tilt of the whole head down towards the thumb (deg)
+MARGIN = 1.0           # flat panel margin beyond the outer bezels
+
+BOX_W = 2 * (BUTTON_X[-1] + BEZEL_D / 2 + MARGIN + EDGE_R)        # 58
+FLAT_ROW_Z = EDGE_R + MARGIN + BEZEL_D / 2                        # 13: bottom row centre
+FLAT_FACE_H = FLAT_ROW_Z + BEZEL_D / 2 + MARGIN + 2.0             # 22: flat face up to the crease
+OVERHANG = 14.0        # top row face overhangs the flat face by this (45 deg, rise == run)
+BOX_H = FLAT_FACE_H + OVERHANG                                    # 36
+BOX_D = 34.0           # Y, head depth == neck diameter (the head cavity only holds switches + wires)
+TOP_ROW_MID = (-BOX_D / 2 - OVERHANG / 2, FLAT_FACE_H + OVERHANG / 2)
+TOP_ROW_TILT = 135.0   # normal points down + towards the user
+
+# Trigger bump under the front of the head: convex (y, z) profile, index finger
+# presses the sloped face (down + towards the user) from below.
+TRIGGER_PROFILE = [(-25.0, -2.0), (-8.0, -16.0), (3.0, -16.0), (3.0, 10.0), (-17.0, 10.0), (-25.0, 2.0)]
+TRIGGER_HALF_W = 20.0
+TRIGGER_X = [-8.0, 8.0]
+
 M4_CLEAR_D = 4.5
 M4_TAP_D = 3.3
 M4_CSK_D = 9.0
 BOSS = 8.0
 PLATE_T = 3.0
-PLATE_MARGIN = 7.5     # plate inset from the head outline
-LEDGE = 4.0            # ledge behind the plate opening
+PLATE_MARGIN = 7.5     # head opening inset from the head outline
+LEDGE = 4.0            # ledge behind the head opening
+PAD_Y0 = 8.0           # flat pad on the back of the neck that the plate tab sits on
+PAD_HALF_W = 14.0
+PAD_Z0 = -47.0
 
 # Controller: HiLetgo Pro Micro (ATmega32U4), 33 x 18 mm PCB, micro-USB on a short edge.
-# Mounted PCB-parallel to the back plate, USB jack pointing down at the grip channel,
-# header pins facing the plate with BOARD_STANDOFF of wiring room behind them.
+# Sits in the neck pocket, PCB parallel to the plate, jack down over the cable channel,
+# header pins towards the plate.
 PCB_L = 33.0
 PCB_W = 18.0
 PCB_T = 1.6
-PCB_CLEAR = 0.3        # groove clearance on width and thickness
-BOARD_STANDOFF = 12.0  # PCB back face -> plate inner face (pins + wires live here)
-BOARD_Z0 = 13.0        # head-local z of the PCB bottom edge (USB end); rails clear the plate ledge
-RAIL_W = 4.0
-RAIL_GROOVE = 1.3      # groove depth into each rail
+PCB_CLEAR = 0.3
+JACK_T = 2.8           # micro-USB jack height above the PCB
+BOARD_Z0 = -36.0       # head-local z of the PCB bottom edge
+POCKET_W = PCB_W + 2 * PCB_CLEAR + 0.4
 
 GRIP_H = 120.0         # base top -> head bottom
 GRIP_ELLIP = 0.92      # cross-section: rx = r * ellip (deeper than wide, like a real stick)
@@ -97,8 +109,9 @@ CABLE_D = 12.0         # channel must pass a micro-USB plug (~7 x 11 mm overmoul
 BASE_GROOVE_W = 9.0    # cable groove across the underside of the base, out the back
 BASE_GROOVE_D = 3.5
 
-TOP_ROW_COLORS = ["#d81e1e", "#f2f2f2", "#1e64d8", "#1a1a1a"]      # red white blue black
-BOTTOM_ROW_COLORS = ["#f2c800", "#22a83a", "#f07f16", "#8a8a8a"]   # yellow green orange grey
+TOP_ROW_COLORS = ["#d81e1e", "#f2f2f2", "#1e64d8"]          # red white blue
+BOTTOM_ROW_COLORS = ["#f2c800", "#22a83a", "#f07f16"]       # yellow green orange
+TRIGGER_COLORS = ["#1a1a1a", "#8a8a8a"]                     # black grey
 BODY_COLOR = "#252528"
 PLATE_COLOR = "#1f1f22"
 PCB_COLOR = "#1b6b3a"
@@ -124,6 +137,12 @@ def difference(base, *cutters):
 def cyl(r, h, z0=0.0, sections=SEG):
     m = cylinder(radius=r, height=h, sections=sections)
     m.apply_translation([0, 0, z0 + h / 2])
+    return m
+
+
+def box_at(extents, center):
+    m = tbox(extents=extents)
+    m.apply_translation(center)
     return m
 
 
@@ -206,7 +225,7 @@ def rounded_hull(profile_yz, half_width, inset, radius):
 
 def panel_frame(x, y, z, tilt_deg):
     """Button frame: origin on the panel surface, +Z = outward normal.
-    tilt rotates +Z about X: 90 -> faces -Y (the user), 45 -> up and towards the user."""
+    tilt rotates +Z about X: 90 -> faces -Y (the user), 135 -> down and towards the user."""
     return translation_matrix([x, y, z]) @ rotation_matrix(math.radians(tilt_deg), [1, 0, 0])
 
 
@@ -217,117 +236,137 @@ def tf(mesh, matrix):
 
 
 # --------------------------------------------------------------------------
-# Head (button box) — built in head-local coords: origin at bottom centre,
-# front face at y = -BOX_D/2, then tilted by PANEL_TILT and placed on the grip.
+# Grip spine (world coords) and head placement
 # --------------------------------------------------------------------------
-# The head is the union of two convex rounded blocks: the main block (flat face,
-# bottom row) and the upper block whose front face slopes forward over the thumb.
+SPINE = (np.array([0, 0, 0.0]), np.array([0, -10.0, 50.0]),
+         np.array([0, -16.0, 98.0]), np.array([0, -14.0, GRIP_H]))
+
+
+def grip_spine(t):
+    return bezier(*SPINE, t)
+
+
+def head_transform():
+    top = grip_spine(np.array([1.0]))[0]
+    return translation_matrix(top) @ rotation_matrix(math.radians(PANEL_TILT), [1, 0, 0])
+
+
+def spine_in_head(z_local):
+    """head-local y of the grip spine (== cable channel centre) at head-local height z_local."""
+    T_inv = np.linalg.inv(head_transform())
+    t = np.linspace(0.3, 1.0, 400)
+    pts = (T_inv @ np.c_[grip_spine(t), np.ones(len(t))].T).T
+    return float(np.interp(z_local, pts[:, 2], pts[:, 1]))
+
+
+# --------------------------------------------------------------------------
+# Head — head-local coords: origin at bottom centre (= spine top),
+# front face at y = -BOX_D/2, tilted by PANEL_TILT and placed on the grip.
+# --------------------------------------------------------------------------
 HEAD_LOWER = [(-BOX_D / 2, 0), (BOX_D / 2, 0), (BOX_D / 2, FLAT_FACE_H + 12), (-BOX_D / 2, FLAT_FACE_H + 12)]
 HEAD_UPPER = [(-BOX_D / 2, FLAT_FACE_H), (BOX_D / 2, FLAT_FACE_H), (BOX_D / 2, BOX_H),
               (-BOX_D / 2 - OVERHANG, BOX_H)]
+PAD_PROFILE = [(PAD_Y0, PAD_Z0), (BOX_D / 2, PAD_Z0), (BOX_D / 2, 3.0), (PAD_Y0, 3.0)]
+
+
+def trigger_face():
+    """(mid_y, mid_z, tilt_deg) of the trigger face (first profile edge)."""
+    (y0, z0), (y1, z1) = TRIGGER_PROFILE[0], TRIGGER_PROFILE[1]
+    dy, dz = y1 - y0, z1 - z0
+    ny, nz = dz, -dy                      # outward normal of a CCW edge
+    n = math.hypot(ny, nz)
+    ny, nz = ny / n, nz / n
+    tilt = math.degrees(math.atan2(-ny, nz))
+    return (y0 + y1) / 2, (z0 + z1) / 2, tilt
 
 
 def button_frames():
-    """Head-local frames; top row first (red, white, blue, black), then bottom row."""
+    """Head-local frames: top row (3), bottom row (3), trigger (2)."""
     frames = [panel_frame(x, TOP_ROW_MID[0], TOP_ROW_MID[1], TOP_ROW_TILT) for x in BUTTON_X]
     frames += [panel_frame(x, -BOX_D / 2, FLAT_ROW_Z, 90.0) for x in BUTTON_X]
+    ty, tz, tilt = trigger_face()
+    frames += [panel_frame(x, ty, tz, tilt) for x in TRIGGER_X]
     return frames
 
 
-def plate_hole_points():
-    hx = BOX_W / 2 - PLATE_MARGIN - 5.0
-    return [(sx * hx, z) for sx in (-1, 1) for z in (PLATE_MARGIN + 5.0, BOX_H - PLATE_MARGIN - 5.0)]
+def pcb_plane_y():
+    """head-local y of the PCB front face: jack centred over the cable channel."""
+    return spine_in_head(BOARD_Z0) + JACK_T / 2
+
+
+def head_hole_points():
+    return [(sx * (BOX_W / 2 - PLATE_MARGIN - 4.0), FLAT_FACE_H / 2 + 7.0) for sx in (-1, 1)]
+
+
+def pad_hole_points():
+    return [(sx * 7.0, BOARD_Z0 - 6.0) for sx in (-1, 1)]
 
 
 def head_parts():
     """Returns (outer, cavity, additions, cuts) all in head-local coords."""
-    outer = union(rounded_hull(HEAD_LOWER, BOX_W / 2, EDGE_R, EDGE_R),
-                  rounded_hull(HEAD_UPPER, BOX_W / 2, EDGE_R, EDGE_R))
-    cavity = union(rounded_hull(HEAD_LOWER, BOX_W / 2, EDGE_R, EDGE_R - WALL),
-                   rounded_hull(HEAD_UPPER, BOX_W / 2, EDGE_R, EDGE_R - WALL))
+    hulls = [(HEAD_LOWER, BOX_W / 2), (HEAD_UPPER, BOX_W / 2), (TRIGGER_PROFILE, TRIGGER_HALF_W)]
+    outer = union(*[rounded_hull(p, hw, EDGE_R, EDGE_R) for p, hw in hulls],
+                  rounded_hull(PAD_PROFILE, PAD_HALF_W, 3.0, 3.0))
+    cavity = union(*[rounded_hull(p, hw, EDGE_R, EDGE_R - WALL) for p, hw in hulls])
 
-    # rear opening for the access plate, cut clean through the back wall
+    y_in = BOX_D / 2 - WALL                       # inner face of the back wall
+    y_pcb = pcb_plane_y()
+
+    # head opening + ledge + two side bosses
     ow, oh = BOX_W - 2 * PLATE_MARGIN, BOX_H - 2 * PLATE_MARGIN
-    opening = tbox(extents=[ow, WALL + 2, oh])
-    opening.apply_translation([0, BOX_D / 2 - WALL / 2 + 0.5, BOX_H / 2])
-
-    # ledge frame + screw bosses just inside the opening
-    ledge_outer = tbox(extents=[ow + 2 * LEDGE, LEDGE, oh + 2 * LEDGE])
-    ledge_outer.apply_translation([0, BOX_D / 2 - WALL - LEDGE / 2, BOX_H / 2])
-    ledge_inner = tbox(extents=[ow - 2 * LEDGE, LEDGE + 2, oh - 2 * LEDGE])
-    ledge_inner.apply_translation([0, BOX_D / 2 - WALL - LEDGE / 2, BOX_H / 2])
-    ledge = difference(ledge_outer, ledge_inner)
-
+    opening = box_at([ow, WALL + 2, oh], [0, y_in + WALL / 2 + 0.5, BOX_H / 2])
+    ledge = difference(box_at([ow + 2 * LEDGE, LEDGE, oh + 2 * LEDGE], [0, y_in - LEDGE / 2, BOX_H / 2]),
+                       box_at([ow - 2 * LEDGE, LEDGE + 2, oh - 2 * LEDGE], [0, y_in - LEDGE / 2, BOX_H / 2]))
     bosses, boss_holes = [], []
-    for bx, bz in plate_hole_points():
-        b = tbox(extents=[BOSS, BOSS + LEDGE, BOSS])
-        b.apply_translation([bx, BOX_D / 2 - WALL - (BOSS + LEDGE) / 2, bz])
-        bosses.append(b)
+    for bx, bz in head_hole_points():
+        bosses.append(box_at([BOSS, BOSS + LEDGE, BOSS], [bx, y_in - (BOSS + LEDGE) / 2, bz]))
         h = cyl(M4_TAP_D / 2, BOSS + LEDGE + 1, 0)
         h.apply_transform(rotation_matrix(math.radians(90), [1, 0, 0]))  # +Z -> -Y
-        h.apply_translation([bx, BOX_D / 2 - WALL + 0.5, bz])
+        h.apply_translation([bx, y_in + 0.5, bz])
+        boss_holes.append(h)
+
+    # neck pocket for the Pro Micro: open to the back (under the plate tab) and up
+    # into the head cavity. Board rests on the pocket floor, jack over the channel.
+    pocket_front = y_pcb - JACK_T - 0.7
+    pocket = box_at([POCKET_W, y_in + 1.0 - pocket_front, 3.5 - (BOARD_Z0 - 1.5)],
+                    [0, (y_in + 1.0 + pocket_front) / 2, (3.5 + BOARD_Z0 - 1.5) / 2])
+    # ribs on the pocket side walls behind the header plastic keep the board against the front wall
+    rib_y = y_pcb + PCB_T + 2.5 + 0.3
+    ribs = [box_at([2.6, 1.2, PCB_L + 2], [sx * (POCKET_W / 2 - 1.0), rib_y + 0.6, BOARD_Z0 + PCB_L / 2 - 1])
+            for sx in (-1, 1)]
+    # recess in the pad so the plate tab sits flush, + tab bosses below the pocket
+    recess = box_at([2 * PAD_HALF_W - 4.6, PLATE_T + 1, PLATE_MARGIN + 0.1 - (PAD_Z0 + 2.8)],
+                    [0, y_in + (PLATE_T + 1) / 2, (PLATE_MARGIN + 0.1 + PAD_Z0 + 2.8) / 2])
+    for bx, bz in pad_hole_points():
+        h = cyl(M4_TAP_D / 2, 9.0, 0)
+        h.apply_transform(rotation_matrix(math.radians(90), [1, 0, 0]))
+        h.apply_translation([bx, y_in + 0.5, bz])
         boss_holes.append(h)
 
     # button bezels, through holes, switch pockets
     bezel = cyl(BEZEL_D / 2, BEZEL_H, 0)
     through = cyl(CAP_HOLE_D / 2, WALL + BEZEL_H + 2, -WALL - 1)
-    pocket = tbox(extents=[SWITCH_POCKET, SWITCH_POCKET, SWITCH_POCKET_DEPTH + 1])
-    pocket.apply_translation([0, 0, -WALL + SWITCH_POCKET_DEPTH / 2 - 0.5])
+    spocket = box_at([SWITCH_POCKET, SWITCH_POCKET, SWITCH_POCKET_DEPTH + 1],
+                     [0, 0, -WALL + SWITCH_POCKET_DEPTH / 2 - 0.5])
     bezels, button_cuts = [], []
     for m in button_frames():
         bezels.append(tf(bezel, m))
-        button_cuts += [tf(through, m), tf(pocket, m)]
+        button_cuts += [tf(through, m), tf(spocket, m)]
 
-    additions = [ledge] + bosses + bezels
-    cuts = [opening] + boss_holes + button_cuts
+    additions = [ledge] + bosses + ribs + bezels
+    cuts = [opening, pocket, recess] + boss_holes + button_cuts
     return outer, cavity, additions, cuts
 
 
-def pcb_plane_y():
-    """head-local y of the PCB front face (component side)."""
-    return BOX_D / 2 - PLATE_T - BOARD_STANDOFF - PCB_T
-
-
 def build_back_plate():
-    ow, oh = BOX_W - 2 * PLATE_MARGIN - 0.4, BOX_H - 2 * PLATE_MARGIN - 0.4   # 0.2 mm clearance
-    plate = tbox(extents=[ow, PLATE_T, oh])
-    plate.apply_translation([0, BOX_D / 2 - PLATE_T / 2, BOX_H / 2])
-
-    # Two horizontal rails grip the Pro Micro's short edges (the long edges carry the
-    # header plastic, so they stay free). The board slides in along +X with the plate
-    # off, pins towards the plate; a wall stops it at -X and a 0.5 mm bump at +X keeps
-    # it from sliding back out. The bottom rail is notched for the micro-USB jack.
-    y_plate_in = BOX_D / 2 - PLATE_T
-    y_pcb = pcb_plane_y()
-    c = PCB_CLEAR / 2
-    y_front = y_pcb - c - 1.5                    # front lip outer face
-    rail_x = PCB_W / 2 + 2.0
-    rails = []
-    for edge_z, sz in ((BOARD_Z0, -1), (BOARD_Z0 + PCB_L, +1)):
-        lip_f, lip_b, floor_t = 1.3, 1.0, 1.15   # front lip, back lip (under the headers), floor
-        z_lo = edge_z - (floor_t if sz < 0 else lip_f)
-        z_hi = edge_z + (lip_f if sz < 0 else floor_t)
-        body = tbox(extents=[2 * rail_x, y_plate_in + 0.5 - y_front, z_hi - z_lo])
-        body.apply_translation([0, (y_plate_in + 0.5 + y_front) / 2, (z_lo + z_hi) / 2])
-        # slot for the PCB edge, open towards the board
-        slot = tbox(extents=[2 * rail_x + 4, PCB_T + PCB_CLEAR, 10])
-        slot.apply_translation([0, y_pcb + PCB_T / 2, edge_z + sz * c - sz * 5])
-        # trim the back lip to lip_b so the header plastic (1.25 mm from the edge) clears it
-        trim = tbox(extents=[2 * rail_x + 4, y_plate_in + 2 - (y_pcb + PCB_T + c), 10])
-        trim.apply_translation([0, (y_plate_in + 2 + y_pcb + PCB_T + c) / 2, edge_z - sz * lip_b - sz * 5])
-        rail = difference(body, slot, trim)
-        if sz < 0:                                # USB jack notch, front side only
-            notch = tbox(extents=[10.0, y_pcb + 0.1 - (y_front - 1), 20])
-            notch.apply_translation([0, (y_pcb + 0.1 + y_front - 1) / 2, edge_z])
-            rail = difference(rail, notch)
-        stop = tbox(extents=[rail_x - (PCB_W / 2 + c) + 0.5, y_plate_in + 0.5 - y_front, z_hi - z_lo])
-        stop.apply_translation([-(PCB_W / 2 + c) - stop.extents[0] / 2 + 0.0, (y_plate_in + 0.5 + y_front) / 2, (z_lo + z_hi) / 2])
-        bump = tbox(extents=[1.0, PCB_T + PCB_CLEAR, 0.5 + 0.2])
-        bump.apply_translation([PCB_W / 2 + c + 0.7, y_pcb + PCB_T / 2, edge_z - sz * c - sz * (0.5 + 0.2) / 2 + sz * 0.2])
-        rails += [rail, stop, bump]
-    plate = union(plate, *rails)
+    y_c = BOX_D / 2 - PLATE_T / 2
+    ow, oh = BOX_W - 2 * PLATE_MARGIN - 0.4, BOX_H - 2 * PLATE_MARGIN - 0.4
+    head = box_at([ow, PLATE_T, oh], [0, y_c, BOX_H / 2])
+    tab_w = 2 * PAD_HALF_W - 4.6 - 0.4
+    tab = box_at([tab_w, PLATE_T, PLATE_MARGIN + 0.5 - (PAD_Z0 + 3.0)], [0, y_c, (PLATE_MARGIN + 0.5 + PAD_Z0 + 3.0) / 2])
+    plate = union(head, tab)
     holes = []
-    for bx, bz in plate_hole_points():
+    for bx, bz in head_hole_points() + pad_hole_points():
         h = csk_hole(M4_CLEAR_D, M4_CSK_D, PLATE_T + 1, 0)
         h.apply_transform(rotation_matrix(math.radians(-90), [1, 0, 0]))  # +Z -> +Y
         h.apply_translation([bx, BOX_D / 2, bz])
@@ -339,19 +378,13 @@ def build_board_mockup():
     """Pro Micro envelope in head-local coords: PCB, micro-USB jack, header plastic and
     pin envelopes. Not printable — for fit checks and the viewer only."""
     y0 = pcb_plane_y()
-    pcb = tbox(extents=[PCB_W, PCB_T, PCB_L])
-    pcb.apply_translation([0, y0 + PCB_T / 2, BOARD_Z0 + PCB_L / 2])
-    jack = tbox(extents=[7.5, 2.8, 6.0])                       # micro-USB, hangs 1 mm past the edge
-    jack.apply_translation([0, y0 - 1.4, BOARD_Z0 - 1 + 3])
-    parts = [pcb, jack]
-    pins = []
+    pcb = box_at([PCB_W, PCB_T, PCB_L], [0, y0 + PCB_T / 2, BOARD_Z0 + PCB_L / 2])
+    jack = box_at([7.5, JACK_T, 6.0], [0, y0 - JACK_T / 2, BOARD_Z0 - 1 + 3])
+    parts, pins = [pcb, jack], []
     for sx in (-1, 1):
-        hp = tbox(extents=[2.54, 2.5, 12 * 2.54])                # header plastic, pins side
-        hp.apply_translation([sx * (PCB_W / 2 - 1.27 - 0.4), y0 + PCB_T + 1.25, BOARD_Z0 + 1.5 + 6 * 2.54])
-        pin = tbox(extents=[0.7, 6.0, 12 * 2.54 - 0.5])
-        pin.apply_translation([sx * (PCB_W / 2 - 1.27 - 0.4), y0 + PCB_T + 2.5 + 3.0, BOARD_Z0 + 1.5 + 6 * 2.54])
-        parts.append(hp)
-        pins.append(pin)
+        x = sx * (PCB_W / 2 - 1.27 - 0.4)
+        parts.append(box_at([2.54, 2.5, 12 * 2.54], [x, y0 + PCB_T + 1.25, BOARD_Z0 + 1.5 + 6 * 2.54]))
+        pins.append(box_at([0.7, 6.0, 12 * 2.54 - 0.5], [x, y0 + PCB_T + 2.5 + 3.0, BOARD_Z0 + 1.5 + 6 * 2.54]))
     return union(*parts), union(*pins)
 
 
@@ -368,17 +401,9 @@ def build_button_cap():
 # --------------------------------------------------------------------------
 # Grip and base
 # --------------------------------------------------------------------------
-SPINE = (np.array([0, 0, 0.0]), np.array([0, -10.0, 50.0]),
-         np.array([0, -16.0, 98.0]), np.array([0, -14.0, GRIP_H]))
-
-
-def grip_spine(t):
-    return bezier(*SPINE, t)
-
-
 def grip_radius(t):
     knots = [0.00, 0.10, 0.25, 0.48, 0.65, 0.80, 0.92, 1.00]
-    radii = [21.5, 19.0, 18.5, 21.5, 20.0, 16.5, 17.0, 17.5]
+    radii = [21.5, 19.0, 18.5, 21.5, 20.0, 17.0, 17.0, 17.0]
     r = np.interp(t, knots, radii)
     k = 9
     pad = np.pad(r, (k // 2, k // 2), mode="edge")
@@ -393,13 +418,11 @@ def build_grip_parts():
     collar = cyl(COLLAR_R, COLLAR_H, 0)
     knurls = []
     for i in range(28):
-        g = tbox(extents=[1.6, 3.0, COLLAR_H - 4])
-        g.apply_translation([COLLAR_R, 0, COLLAR_H / 2])
+        g = box_at([1.6, 3.0, COLLAR_H - 4], [COLLAR_R, 0, COLLAR_H / 2])
         g.apply_transform(rotation_matrix(2 * math.pi * i / 28, [0, 0, 1]))
         knurls.append(g)
 
-    # fully rounded base disc: hull of a ring of spheres
-    sphere = icosphere(subdivisions=3, radius=BASE_T / 2)
+    sphere = icosphere(subdivisions=3, radius=BASE_T / 2)          # fully rounded base disc
     rr = BASE_R - BASE_T / 2
     pts = np.vstack([sphere.vertices + [rr * math.cos(a), rr * math.sin(a), -BASE_T / 2]
                      for a in np.linspace(0, 2 * math.pi, 64, endpoint=False)])
@@ -413,19 +436,13 @@ def build_grip_parts():
 
     tc = np.linspace(-0.07, 1.12, 100)      # USB channel, through the base -> head cavity
     channel = sweep(grip_spine(tc), np.full(len(tc), CABLE_D / 2), ellip=1.0, sections=32)
-    groove = tbox(extents=[BASE_GROOVE_W, BASE_R + 2, BASE_GROOVE_D + 1])   # cable groove out the back
-    groove.apply_translation([0, (BASE_R + 2) / 2, -BASE_T + BASE_GROOVE_D / 2 - 0.5])
+    groove = box_at([BASE_GROOVE_W, BASE_R + 2, BASE_GROOVE_D + 1], [0, (BASE_R + 2) / 2, -BASE_T + BASE_GROOVE_D / 2 - 0.5])
     return [grip, collar, base], knurls + base_holes + [channel, groove]
 
 
 # --------------------------------------------------------------------------
 # Assembly / export
 # --------------------------------------------------------------------------
-def head_transform():
-    top = grip_spine(np.array([1.0]))[0]
-    return translation_matrix(top) @ rotation_matrix(math.radians(PANEL_TILT), [1, 0, 0])
-
-
 def stl_b64(mesh):
     return base64.b64encode(mesh.export(file_type="stl")).decode("ascii")
 
@@ -453,7 +470,8 @@ def main():
     board, pins = build_board_mockup()
     board, pins = tf(board, T), tf(pins, T)
     cap = build_button_cap()
-    caps = [(tf(cap, T @ m), c, T @ m) for m, c in zip(button_frames(), TOP_ROW_COLORS + BOTTOM_ROW_COLORS)]
+    colors = TOP_ROW_COLORS + BOTTOM_ROW_COLORS + TRIGGER_COLORS
+    caps = [(tf(cap, T @ m), c, T @ m) for m, c in zip(button_frames(), colors)]
 
     plate_explode = (T[:3, :3] @ [0, 1, 0] * 40).tolist()
     parts = [("body", body, BODY_COLOR, [0, 0, 0]),
@@ -466,12 +484,12 @@ def main():
         assert mesh.is_watertight, f"{name} is not watertight"
         assert mesh.is_volume, f"{name} is not a valid volume"
 
-    # fit checks: the board envelope must not collide with the body or the plate rails
+    # fit checks: the board envelope must not collide with the body or the plate
     for name, other in (("body", body), ("plate", plate)):
         for bname, bm in (("board", board), ("pins", pins)):
             hit = trimesh.boolean.intersection([bm, other], engine="manifold")
-            assert hit.is_empty or hit.volume < 0.05, f"{bname} collides with {name}: {hit.volume:.2f} mm3"
-    print("fit check: board and pins clear the body and plate rails")
+            assert hit.is_empty or hit.volume < 0.05, f"{bname} collides with {name}: {hit.volume:.2f} mm3 at {hit.bounds}"
+    print("fit check: board and pins clear the body and the plate")
 
     body.export(os.path.join(OUT, "joystick_body.stl"))
     plate.export(os.path.join(OUT, "joystick_back_plate.stl"))
@@ -487,18 +505,20 @@ def main():
     }
     with open(os.path.join(OUT, "scene.json"), "w") as f:
         json.dump(scene, f)
+    ty, tz, ttilt = trigger_face()
     meta = {
         "head_transform": T.tolist(),
         "head": {"w": BOX_W, "h": BOX_H, "d": BOX_D, "overhang": OVERHANG, "flat_face_h": FLAT_FACE_H,
-                 "panel_tilt": PANEL_TILT},
+                 "panel_tilt": PANEL_TILT, "pitch": BUTTON_PITCH},
+        "trigger": {"mid_y": ty, "mid_z": tz, "tilt": ttilt, "profile": TRIGGER_PROFILE},
         "bounds": assembly.bounds.tolist(),
         "buttons": [(T @ m)[:3, 3].tolist() for m in button_frames()],
-        "board": {"pcb": [PCB_L, PCB_W, PCB_T], "standoff": BOARD_STANDOFF, "z0": BOARD_Z0,
-                  "pcb_plane_y": pcb_plane_y(), "cable_d": CABLE_D},
+        "board": {"pcb": [PCB_L, PCB_W, PCB_T], "z0": BOARD_Z0, "pcb_plane_y": pcb_plane_y(), "cable_d": CABLE_D},
     }
     with open(os.path.join(OUT, "meta.json"), "w") as f:
         json.dump(meta, f, indent=1)
 
+    print(f"head {BOX_W:.0f} x {BOX_H:.0f} x {BOX_D:.0f} mm (+{OVERHANG:.0f} overhang), trigger face tilt {ttilt:.1f} deg")
     print(f"assembly bounds (mm): min {assembly.bounds[0].round(1)}  max {assembly.bounds[1].round(1)}")
     for name, mesh, _, _ in parts[:4]:
         print(f"  {name:12s} {len(mesh.faces):6d} tris  volume {mesh.volume / 1000:.1f} cm3")
