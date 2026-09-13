@@ -41,9 +41,9 @@ def label(xy, text, size=16, anchor="mm", color=DIM):
 
 
 # ---------------- layout ----------------
-panel("hero", 0, 0, 600, 900, "8 BUTTON JOYSTICK")
-d.text((18, 44), "6 THUMB BUTTONS · TOP ROW TIPPED 45°", fill=MUTED, font=f(15))
-d.text((18, 64), "2 TRIGGER BUTTONS UNDER THE HEAD", fill=MUTED, font=f(15))
+panel("hero", 0, 0, 600, 900, "6 BUTTON JOYSTICK")
+d.text((18, 44), "TOP ROW TIPPED 45° TO THE THUMB", fill=MUTED, font=f(15))
+d.text((18, 64), "BOTTOM ROW FLAT · PRO MICRO IN THE NECK", fill=MUTED, font=f(15))
 
 panel("front", 600, 0, 500, 450, "FRONT VIEW")
 panel("top", 1100, 0, 500, 450, "TOP VIEW")
@@ -52,7 +52,7 @@ panel("right", 933, 450, 333, 450, "RIGHT SIDE VIEW")
 panel("back", 1266, 450, 334, 450, "BACK VIEW")
 
 panel("inside", 0, 900, 500, 450, "ELECTRONICS FIT", "back plate removed, Pro Micro in the neck pocket")
-panel("trigger", 500, 900, 600, 450, "TRIGGER BUTTONS", "index finger, from below")
+panel("exploded", 500, 900, 600, 450, "EXPLODED VIEW", "back plate, board and caps lifted")
 
 # ---- dimensions: 100 mm on the front view (ortho: 500 px / 140 mm, target x=0,z=165) ----
 import json, math
@@ -113,10 +113,10 @@ x, y = 1100, 900
 d.rectangle([x, y, W - 1, y + 449], outline=LINE, width=2)
 d.text((x + 18, y + 14), "FEATURES", fill=FG, font=f(22, True))
 feat = [
-    "8 momentary tactile push buttons (6×6×8 mm)",
-    "6 on the head for the thumb, 16 mm pitch, 1 mm margins",
-    "Top row of 3 overhangs, tipped 45° towards the user",
-    "2 on a trigger bump under the head for the index finger",
+    "6 momentary tactile push buttons (6×6×8 mm)",
+    "3 + 3 on a 16 mm pitch with 1 mm margins",
+    "Top row overhangs, tipped 45° towards the user",
+    "Bottom row flat, 13 mm up the face for thumb reach",
     "Head 58 × 37 × 34 mm, panel tilted 10° to the thumb",
     "Pro Micro sits in the neck pocket under the head",
     "Micro-USB cable runs down a Ø12 channel in the shaft",
@@ -137,7 +137,7 @@ d.text((x + 18, y + 14), "PRINTABLE PARTS (STL)", fill=FG, font=f(22, True))
 rows = [
     ("joystick_body.stl", "1×", "head + grip + base, one piece. Print upright on the base; supports under the head."),
     ("joystick_back_plate.stl", "1×", "43 × 22 head cover + 23 × 55 neck tab, 3 mm, 4× M4 countersunk. Print flat."),
-    ("joystick_button_cap.stl", "8×", "Ø10 × 8 mm head, Ø9.8 stem, Ø3.6 plunger socket. Print head down."),
+    ("joystick_button_cap.stl", "6×", "Ø10 × 8 mm head, Ø9.8 stem, Ø3.6 plunger socket. Print head down."),
     ("pro_micro_mockup.stl", "—", "board envelope for fit checks in your slicer, not printed."),
 ]
 yy = y + 60
@@ -147,7 +147,7 @@ for name, qty, desc in rows:
     d.text((x + 300, yy), desc, fill=MUTED, font=f(14))
     yy += 40
 notes = [
-    "Hardware: HiLetgo Pro Micro (ATmega32U4), 8× 6×6×8 mm tactile switches, 8× M4×8 countersunk",
+    "Hardware: HiLetgo Pro Micro (ATmega32U4), 6× 6×6×8 mm tactile switches, 8× M4×8 countersunk",
     "screws (4 base, 4 plate), M4 tap or heat-set inserts in the four Ø3.3 bosses.",
     "Wiring: solder leads to the pins, drop the board into the neck pocket from the back (ribs hold it),",
     "feed the micro-USB plug down the Ø12 channel; it exits the base groove at the back.",

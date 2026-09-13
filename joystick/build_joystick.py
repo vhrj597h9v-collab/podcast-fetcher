@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Parametric 8-button joystick — model builder.
+Parametric 6-button joystick — model builder.
 
-Thumb-operated head, 6 buttons: the button panel stands vertical and faces the
-user (tilted a further PANEL_TILT degrees down towards the thumb). The bottom
-row of three sits on the flat face; the top row of three sits on an upper block
-that overhangs the flat face, its face tipped 45 deg down towards the user so the
-thumb reaches it from below. Two more buttons sit on a trigger bump under the
-front of the head, facing down and forward for the index finger.
+Thumb-operated head: the button panel stands vertical and faces the user
+(tilted a further PANEL_TILT degrees down towards the thumb). The bottom row of
+three sits on the flat face; the top row of three sits on an upper block that
+overhangs the flat face, its face tipped 45 deg down towards the user so the
+thumb reaches it from below.
 
 The Pro Micro lives in a pocket in the neck of the grip, just under the head,
 USB jack pointing down the cable channel. One back plate covers the head opening
@@ -17,7 +16,7 @@ Exports (all mm, Z up, -Y is towards the user):
 
   out/joystick_body.stl        head + grip + base, one FDM print
   out/joystick_back_plate.stl  rear access plate with neck tab, 4x M4 countersunk
-  out/joystick_button_cap.stl  one button cap (print 8)
+  out/joystick_button_cap.stl  one button cap (print 6)
   out/pro_micro_mockup.stl     board envelope for fit checks (not printed)
   out/joystick_assembly.stl    everything assembled, for preview only
   out/scene.json               coloured parts + explode vectors for the web viewer
@@ -70,12 +69,6 @@ BOX_D = 34.0           # Y, head depth == neck diameter (the head cavity only ho
 TOP_ROW_MID = (-BOX_D / 2 - OVERHANG / 2, FLAT_FACE_H + OVERHANG / 2)
 TOP_ROW_TILT = 135.0   # normal points down + towards the user
 
-# Trigger bump under the front of the head: convex (y, z) profile, index finger
-# presses the sloped face (down + towards the user) from below.
-TRIGGER_PROFILE = [(-25.0, -2.0), (-8.0, -16.0), (3.0, -16.0), (3.0, 10.0), (-17.0, 10.0), (-25.0, 2.0)]
-TRIGGER_HALF_W = 20.0
-TRIGGER_X = [-8.0, 8.0]
-
 M4_CLEAR_D = 4.5
 M4_TAP_D = 3.3
 M4_CSK_D = 9.0
@@ -111,7 +104,6 @@ BASE_GROOVE_D = 3.5
 
 TOP_ROW_COLORS = ["#d81e1e", "#f2f2f2", "#1e64d8"]          # red white blue
 BOTTOM_ROW_COLORS = ["#f2c800", "#22a83a", "#f07f16"]       # yellow green orange
-TRIGGER_COLORS = ["#1a1a1a", "#8a8a8a"]                     # black grey
 BODY_COLOR = "#252528"
 PLATE_COLOR = "#1f1f22"
 PCB_COLOR = "#1b6b3a"
@@ -269,23 +261,10 @@ HEAD_UPPER = [(-BOX_D / 2, FLAT_FACE_H), (BOX_D / 2, FLAT_FACE_H), (BOX_D / 2, B
 PAD_PROFILE = [(PAD_Y0, PAD_Z0), (BOX_D / 2, PAD_Z0), (BOX_D / 2, 3.0), (PAD_Y0, 3.0)]
 
 
-def trigger_face():
-    """(mid_y, mid_z, tilt_deg) of the trigger face (first profile edge)."""
-    (y0, z0), (y1, z1) = TRIGGER_PROFILE[0], TRIGGER_PROFILE[1]
-    dy, dz = y1 - y0, z1 - z0
-    ny, nz = dz, -dy                      # outward normal of a CCW edge
-    n = math.hypot(ny, nz)
-    ny, nz = ny / n, nz / n
-    tilt = math.degrees(math.atan2(-ny, nz))
-    return (y0 + y1) / 2, (z0 + z1) / 2, tilt
-
-
 def button_frames():
-    """Head-local frames: top row (3), bottom row (3), trigger (2)."""
+    """Head-local frames: top row (3), then bottom row (3)."""
     frames = [panel_frame(x, TOP_ROW_MID[0], TOP_ROW_MID[1], TOP_ROW_TILT) for x in BUTTON_X]
     frames += [panel_frame(x, -BOX_D / 2, FLAT_ROW_Z, 90.0) for x in BUTTON_X]
-    ty, tz, tilt = trigger_face()
-    frames += [panel_frame(x, ty, tz, tilt) for x in TRIGGER_X]
     return frames
 
 
@@ -304,7 +283,7 @@ def pad_hole_points():
 
 def head_parts():
     """Returns (outer, cavity, additions, cuts) all in head-local coords."""
-    hulls = [(HEAD_LOWER, BOX_W / 2), (HEAD_UPPER, BOX_W / 2), (TRIGGER_PROFILE, TRIGGER_HALF_W)]
+    hulls = [(HEAD_LOWER, BOX_W / 2), (HEAD_UPPER, BOX_W / 2)]
     outer = union(*[rounded_hull(p, hw, EDGE_R, EDGE_R) for p, hw in hulls],
                   rounded_hull(PAD_PROFILE, PAD_HALF_W, 3.0, 3.0))
     cavity = union(*[rounded_hull(p, hw, EDGE_R, EDGE_R - WALL) for p, hw in hulls])
@@ -470,7 +449,7 @@ def main():
     board, pins = build_board_mockup()
     board, pins = tf(board, T), tf(pins, T)
     cap = build_button_cap()
-    colors = TOP_ROW_COLORS + BOTTOM_ROW_COLORS + TRIGGER_COLORS
+    colors = TOP_ROW_COLORS + BOTTOM_ROW_COLORS
     caps = [(tf(cap, T @ m), c, T @ m) for m, c in zip(button_frames(), colors)]
 
     plate_explode = (T[:3, :3] @ [0, 1, 0] * 40).tolist()
@@ -505,12 +484,10 @@ def main():
     }
     with open(os.path.join(OUT, "scene.json"), "w") as f:
         json.dump(scene, f)
-    ty, tz, ttilt = trigger_face()
     meta = {
         "head_transform": T.tolist(),
         "head": {"w": BOX_W, "h": BOX_H, "d": BOX_D, "overhang": OVERHANG, "flat_face_h": FLAT_FACE_H,
                  "panel_tilt": PANEL_TILT, "pitch": BUTTON_PITCH},
-        "trigger": {"mid_y": ty, "mid_z": tz, "tilt": ttilt, "profile": TRIGGER_PROFILE},
         "bounds": assembly.bounds.tolist(),
         "buttons": [(T @ m)[:3, 3].tolist() for m in button_frames()],
         "board": {"pcb": [PCB_L, PCB_W, PCB_T], "z0": BOARD_Z0, "pcb_plane_y": pcb_plane_y(), "cable_d": CABLE_D},
@@ -518,7 +495,7 @@ def main():
     with open(os.path.join(OUT, "meta.json"), "w") as f:
         json.dump(meta, f, indent=1)
 
-    print(f"head {BOX_W:.0f} x {BOX_H:.0f} x {BOX_D:.0f} mm (+{OVERHANG:.0f} overhang), trigger face tilt {ttilt:.1f} deg")
+    print(f"head {BOX_W:.0f} x {BOX_H:.0f} x {BOX_D:.0f} mm (+{OVERHANG:.0f} overhang)")
     print(f"assembly bounds (mm): min {assembly.bounds[0].round(1)}  max {assembly.bounds[1].round(1)}")
     for name, mesh, _, _ in parts[:4]:
         print(f"  {name:12s} {len(mesh.faces):6d} tris  volume {mesh.volume / 1000:.1f} cm3")

@@ -19,9 +19,8 @@ const SHOTS = [
   { name: "right",       w: 333, h: 450, q: "view=right&span=110&target=0,-16,128&grid=0" },
   { name: "back",        w: 334, h: 450, q: "view=back&span=110&target=0,0,128&grid=0" },
   { name: "inside",      w: 500, h: 450, q: "view=perspective&theta=160&phi=12&dist=170&target=0,-8,118&fov=30&grid=0&hide=back_plate" },
-  { name: "trigger",     w: 600, h: 450, q: "view=perspective&theta=-30&phi=-28&dist=210&target=0,-22,112&fov=30&grid=0" },
   { name: "thumb",       w: 700, h: 450, q: "view=perspective&theta=-75&phi=4&dist=380&target=0,-14,118&fov=28&grid=0" },
-  { name: "exploded",    w: 700, h: 450, q: "view=perspective&theta=150&phi=22&dist=330&target=0,-8,125&fov=30&grid=0&explode=1" },
+  { name: "exploded",    w: 600, h: 450, q: "view=perspective&theta=150&phi=22&dist=300&target=0,-8,125&fov=30&grid=0&explode=1" },
   { name: "perspective", w: 1200, h: 900, q: "view=perspective&theta=-35&phi=10&dist=540&target=0,-10,86&fov=28" },
 ];
 

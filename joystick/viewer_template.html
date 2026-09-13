@@ -1,4 +1,4 @@
-<title>8 Button Joystick</title>
+<title>6 Button Joystick</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root { --bg:#141518; --panel:#1c1d22; --line:#32343b; --fg:#e9e9ec; --muted:#9a9ca6; --accent:#f2c800; --accent-ink:#1a1a1a; }
@@ -31,7 +31,7 @@
 
 <canvas id="c"></canvas>
 <div id="ui">
-  <div class="card"><h1>8 Button Joystick <small>Thumb head · Pro Micro inside · top row tipped 45° to the user</small></h1></div>
+  <div class="card"><h1>6 Button Joystick <small>Compact thumb head · Pro Micro in the neck · top row tipped 45° to the user</small></h1></div>
   <div class="card views" id="views"></div>
   <div class="card">
     <label><input type="checkbox" id="explode"> Exploded</label>
@@ -42,15 +42,16 @@
 </div>
 <div id="legend" class="card">
   <div class="row"><b>Parts (STL)</b></div>
-  <div class="row"><span class="sw" style="background:#2b2b2e"></span> joystick_body — box + grip + base (1×)</div>
-  <div class="row"><span class="sw" style="background:#1f1f22"></span> joystick_back_plate — 76 × 44 × 3 mm, Pro Micro rails (1×)</div>
+  <div class="row"><span class="sw" style="background:#2b2b2e"></span> joystick_body — head + grip + base (1×)</div>
+  <div class="row"><span class="sw" style="background:#1f1f22"></span> joystick_back_plate — head cover + neck tab, 3 mm (1×)</div>
   <div class="row"><span class="sw" style="background:#1b6b3a"></span> pro_micro_mockup — 33 × 18 mm board envelope, not printed</div>
-  <div class="row"><span class="sw" style="background:linear-gradient(90deg,#d81e1e,#f2c800,#1e64d8,#22a83a)"></span> joystick_button_cap — Ø10 × 8 mm (8×)</div>
+  <div class="row"><span class="sw" style="background:linear-gradient(90deg,#d81e1e,#f2c800,#1e64d8,#22a83a)"></span> joystick_button_cap — Ø10 × 8 mm (6×)</div>
 </div>
 <div id="specs" class="card mono">
-  <span>panel</span><span>92 × 60 mm</span>
+  <span>head</span><span>58 × 37 × 34 mm</span>
   <span>panel tilt</span><span>10° to thumb</span>
   <span>top row</span><span>45° overhang</span>
+  <span>pitch</span><span>16 mm</span>
   <span>switch</span><span>6 × 6 × 8 mm</span>
   <span>cap</span><span>Ø10 × 8 mm</span>
   <span>board</span><span>Pro Micro 33 × 18</span>
