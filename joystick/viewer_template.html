@@ -1,0 +1,279 @@
+<title>8 Button Joystick</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root { --bg:#141518; --panel:#1c1d22; --line:#32343b; --fg:#e9e9ec; --muted:#9a9ca6; --accent:#f2c800; --accent-ink:#1a1a1a; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; }
+  #ui { position:fixed; top:16px; left:16px; right:16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; pointer-events:none; }
+  #ui > * { pointer-events:auto; }
+  .card { background:color-mix(in srgb, var(--panel) 88%, transparent); border:1px solid var(--line); border-radius:10px; padding:8px 10px; backdrop-filter: blur(6px); }
+  h1 { font-size:15px; margin:0; letter-spacing:.04em; text-transform:uppercase; }
+  h1 small { display:block; font-size:11px; color:var(--muted); letter-spacing:.06em; font-weight:400; margin-top:2px; }
+  .views { display:flex; flex-wrap:wrap; gap:4px; }
+  button { background:#2a2a30; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 10px; font:inherit; font-size:12px; cursor:pointer; }
+  button:hover { border-color:#555; }
+  button.on { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .mono { font-family:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; font-variant-numeric:tabular-nums; }
+  #specs { position:fixed; right:16px; top:auto; bottom:64px; font-size:12px; display:grid; grid-template-columns:auto auto; gap:2px 14px; }
+  #specs span:nth-child(odd) { color:var(--muted); }
+  @media (max-width: 600px) { #specs { display:none; } }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  label { font-size:12px; color:var(--muted); display:inline-flex; align-items:center; gap:4px; margin-right:6px; }
+  #legend { position:fixed; left:16px; bottom:16px; font-size:12px; }
+  #legend .row { display:flex; gap:10px; align-items:center; margin:3px 0; }
+  .sw { width:14px; height:14px; border-radius:50%; border:1px solid #000; box-shadow:0 0 0 1px #444 inset; }
+  #hint { position:fixed; right:16px; bottom:16px; font-size:11px; color:var(--muted); text-align:right; }
+  #stats { font-size:11px; color:var(--muted); }
+  @media (max-width: 600px) { #legend, #hint { display:none; } }
+</style>
+
+<canvas id="c"></canvas>
+<div id="ui">
+  <div class="card"><h1>8 Button Joystick <small>Thumb head · top row tipped 45° to the user · bottom row flat</small></h1></div>
+  <div class="card views" id="views"></div>
+  <div class="card">
+    <label><input type="checkbox" id="explode"> Exploded</label>
+    <label><input type="checkbox" id="wire"> Wireframe</label>
+    <label><input type="checkbox" id="spin"> Auto‑rotate</label>
+    <span id="stats"></span>
+  </div>
+</div>
+<div id="legend" class="card">
+  <div class="row"><b>Parts (STL)</b></div>
+  <div class="row"><span class="sw" style="background:#2b2b2e"></span> joystick_body — box + grip + base (1×)</div>
+  <div class="row"><span class="sw" style="background:#1f1f22"></span> joystick_back_plate — 84 × 54 × 3 mm, 4× M4 csk (1×)</div>
+  <div class="row"><span class="sw" style="background:linear-gradient(90deg,#d81e1e,#f2c800,#1e64d8,#22a83a)"></span> joystick_button_cap — Ø10 × 8 mm (8×)</div>
+</div>
+<div id="specs" class="card mono">
+  <span>panel</span><span>100 × 70 mm</span>
+  <span>panel tilt</span><span>10° to thumb</span>
+  <span>top row</span><span>45° overhang</span>
+  <span>switch</span><span>6 × 6 × 8 mm</span>
+  <span>cap</span><span>Ø10 × 8 mm</span>
+  <span>overall</span><span>100 × 109 × 198</span>
+</div>
+<div id="hint" class="card">drag: orbit · wheel: zoom · shift‑drag / right‑drag: pan</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+const SCENE = /*__SCENE__*/null;
+
+// ---------- STL decode + crease-angle smoothing ----------
+function decodeSTL(b64) {
+  const bin = atob(b64), n = bin.length, buf = new Uint8Array(n);
+  for (let i = 0; i < n; i++) buf[i] = bin.charCodeAt(i);
+  const dv = new DataView(buf.buffer);
+  const tris = dv.getUint32(80, true);
+  const pos = new Float32Array(tris * 9);
+  let o = 84;
+  for (let t = 0; t < tris; t++) {
+    o += 12; // skip normal
+    for (let k = 0; k < 9; k++) { pos[t * 9 + k] = dv.getFloat32(o, true); o += 4; }
+    o += 2;
+  }
+  return pos;
+}
+function smoothGeometry(pos, creaseDeg = 32) {
+  const cosT = Math.cos(creaseDeg * Math.PI / 180);
+  const tris = pos.length / 9;
+  const clusters = new Map(); // key -> [{n:[x,y,z], idx}]
+  const outPos = [], outNrm = [], index = [];
+  const fn = new Float32Array(tris * 3);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let t = 0; t < tris; t++) {
+    a.fromArray(pos, t * 9); b.fromArray(pos, t * 9 + 3); c.fromArray(pos, t * 9 + 6);
+    b.sub(a); c.sub(a); b.cross(c).normalize();
+    fn[t * 3] = b.x; fn[t * 3 + 1] = b.y; fn[t * 3 + 2] = b.z;
+  }
+  for (let t = 0; t < tris; t++) {
+    const nx = fn[t * 3], ny = fn[t * 3 + 1], nz = fn[t * 3 + 2];
+    for (let v = 0; v < 3; v++) {
+      const x = pos[t * 9 + v * 3], y = pos[t * 9 + v * 3 + 1], z = pos[t * 9 + v * 3 + 2];
+      const key = (Math.round(x * 1000)) + "," + (Math.round(y * 1000)) + "," + (Math.round(z * 1000));
+      let list = clusters.get(key);
+      if (!list) { list = []; clusters.set(key, list); }
+      let hit = null;
+      for (const cl of list) {
+        const l = Math.hypot(cl.n[0], cl.n[1], cl.n[2]) || 1;
+        if ((cl.n[0] * nx + cl.n[1] * ny + cl.n[2] * nz) / l > cosT) { hit = cl; break; }
+      }
+      if (!hit) { hit = { n: [0, 0, 0], idx: outPos.length / 3 }; list.push(hit); outPos.push(x, y, z); }
+      hit.n[0] += nx; hit.n[1] += ny; hit.n[2] += nz;
+      index.push(hit.idx);
+    }
+  }
+  const nrm = new Float32Array(outPos.length);
+  for (const list of clusters.values()) for (const cl of list) {
+    const l = Math.hypot(cl.n[0], cl.n[1], cl.n[2]) || 1;
+    nrm[cl.idx * 3] = cl.n[0] / l; nrm[cl.idx * 3 + 1] = cl.n[1] / l; nrm[cl.idx * 3 + 2] = cl.n[2] / l;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(outPos, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(nrm, 3));
+  g.setIndex(index);
+  return g;
+}
+
+// ---------- scene ----------
+const params = new URLSearchParams(location.search);
+const shot = params.get("shot") === "1";
+if (shot) ["ui", "legend", "hint", "specs"].forEach(id => document.getElementById(id).style.display = "none");
+
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(shot ? 1 : Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(params.get("bg") || "#151517");
+
+const root = new THREE.Group();
+scene.add(root);
+const parts = [];
+let triCount = 0;
+for (const p of SCENE.parts) {
+  const geo = smoothGeometry(decodeSTL(p.stl));
+  triCount += geo.index.count / 3;
+  const isCap = p.name.startsWith("cap_");
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(p.color),
+    roughness: isCap ? 0.6 : 0.72,
+    metalness: isCap ? 0.0 : 0.08,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.userData.name = p.name;
+  mesh.userData.explode = new THREE.Vector3().fromArray(p.explode || [0, 0, 0]);
+  root.add(mesh); parts.push(mesh);
+}
+document.getElementById("stats").textContent = SCENE.parts.length + " parts · " + triCount.toLocaleString() + " triangles";
+
+// ground + grid
+const [bmin, bmax] = SCENE.bounds;
+const center = new THREE.Vector3((bmin[0] + bmax[0]) / 2, (bmin[1] + bmax[1]) / 2, (bmin[2] + bmax[2]) / 2);
+const size = Math.max(bmax[0] - bmin[0], bmax[1] - bmin[1], bmax[2] - bmin[2]);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.ShadowMaterial({ opacity: 0.45 }));
+ground.position.z = bmin[2]; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(400, 40, 0x3a3a40, 0x2a2a2f);
+grid.rotation.x = Math.PI / 2; grid.position.z = bmin[2] - 0.05; scene.add(grid);
+if (params.get("grid") === "0") grid.visible = false;
+
+// lights
+scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x222222, 0.7));
+const key = new THREE.DirectionalLight(0xffffff, 0.85);
+key.position.set(-160, -220, 320); key.castShadow = true;
+key.shadow.mapSize.set(4096, 4096);
+key.shadow.bias = -0.0002; key.shadow.normalBias = 0.6; key.shadow.radius = 2;
+Object.assign(key.shadow.camera, { left: -200, right: 200, top: 200, bottom: -200, near: 10, far: 1200 });
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfd4ff, 0.45); fill.position.set(260, -80, 120); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.5); rim.position.set(80, 260, 200); scene.add(rim);
+
+// ---------- cameras + orbit ----------
+const persp = new THREE.PerspectiveCamera(32, 1, 1, 5000);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -2000, 4000);
+persp.up.set(0, 0, 1); ortho.up.set(0, 0, 1);
+const orbit = { theta: 0, phi: 0, dist: size * 2.2, target: center.clone(), orthoMode: false, span: 0 };
+
+const VIEWS = {
+  perspective: { theta: -35, phi: 28, ortho: false },
+  front:       { theta: 0,   phi: 0,  ortho: true },
+  back:        { theta: 180, phi: 0,  ortho: true },
+  left:        { theta: -90, phi: 0,  ortho: true },
+  right:       { theta: 90,  phi: 0,  ortho: true },
+  top:         { theta: 0,   phi: 89.9, ortho: true },
+  bottom:      { theta: 0,   phi: -89.9, ortho: true },
+};
+function setView(name) {
+  const v = VIEWS[name] || VIEWS.perspective;
+  orbit.theta = v.theta; orbit.phi = v.phi; orbit.orthoMode = v.ortho;
+  orbit.target.copy(center); orbit.dist = size * 2.2;
+  orbit.span = v.ortho ? size * 1.25 : 0;
+  document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === name));
+}
+function cameraPos() {
+  const t = THREE.MathUtils.degToRad(orbit.theta), p = THREE.MathUtils.degToRad(orbit.phi);
+  // theta 0 = looking from the front (-Y); positive theta walks around to +X (the right side)
+  return new THREE.Vector3(Math.sin(t) * Math.cos(p), -Math.cos(t) * Math.cos(p), Math.sin(p)).multiplyScalar(orbit.dist).add(orbit.target);
+}
+function activeCamera() {
+  const w = canvas.clientWidth, h = canvas.clientHeight, aspect = w / h;
+  const pos = cameraPos();
+  let cam;
+  if (orbit.orthoMode) {
+    cam = ortho;
+    const hw = orbit.span / 2, hh = hw / aspect;
+    cam.left = -hw; cam.right = hw; cam.top = hh; cam.bottom = -hh;
+  } else { cam = persp; cam.aspect = aspect; }
+  cam.position.copy(pos); cam.lookAt(orbit.target); cam.updateProjectionMatrix();
+  return cam;
+}
+
+// pointer orbit / pan / zoom
+let drag = null;
+canvas.addEventListener("pointerdown", e => { drag = { x: e.clientX, y: e.clientY, pan: e.shiftKey || e.button === 2 }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.pan) {
+    const cam = activeCamera();
+    const scale = orbit.orthoMode ? orbit.span / canvas.clientWidth : 2 * orbit.dist * Math.tan(THREE.MathUtils.degToRad(persp.fov / 2)) / canvas.clientHeight;
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), up = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    orbit.target.addScaledVector(right, -dx * scale).addScaledVector(up, dy * scale);
+  } else {
+    orbit.theta -= dx * 0.4; orbit.phi = THREE.MathUtils.clamp(orbit.phi + dy * 0.4, -89.9, 89.9);
+    document.querySelectorAll("#views button").forEach(b => b.classList.remove("on"));
+  }
+});
+canvas.addEventListener("pointerup", () => drag = null);
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+canvas.addEventListener("wheel", e => { e.preventDefault(); const f = Math.exp(e.deltaY * 0.0012); orbit.dist *= f; orbit.span *= f; }, { passive: false });
+
+// UI
+const viewsEl = document.getElementById("views");
+for (const name of Object.keys(VIEWS)) {
+  const b = document.createElement("button"); b.textContent = name[0].toUpperCase() + name.slice(1); b.dataset.v = name;
+  b.onclick = () => setView(name); viewsEl.appendChild(b);
+}
+let explodeT = 0;
+document.getElementById("explode").onchange = e => explodeTarget = e.target.checked ? 1 : 0;
+let explodeTarget = params.get("explode") === "1" ? 1 : 0;
+document.getElementById("explode").checked = !!explodeTarget;
+document.getElementById("wire").onchange = e => parts.forEach(m => m.material.wireframe = e.target.checked);
+const spinEl = document.getElementById("spin");
+
+// initial view (URL: ?view=front&shot=1&w=1000&h=800&span=180&target=x,y,z&dist=..&theta=..&phi=..)
+setView(params.get("view") || "perspective");
+if (params.get("span")) orbit.span = +params.get("span");
+if (params.get("dist")) orbit.dist = +params.get("dist");
+if (params.get("theta")) orbit.theta = +params.get("theta");
+if (params.get("phi")) orbit.phi = +params.get("phi");
+if (params.get("target")) { const [x, y, z] = params.get("target").split(",").map(Number); orbit.target.set(x, y, z); }
+if (params.get("fov")) persp.fov = +params.get("fov");
+
+function resize() {
+  const w = shot && params.get("w") ? +params.get("w") : innerWidth;
+  const h = shot && params.get("h") ? +params.get("h") : innerHeight;
+  if (canvas.width !== w || canvas.height !== h) { renderer.setSize(w, h, false); canvas.style.width = w + "px"; canvas.style.height = h + "px"; }
+}
+window.addEventListener("resize", resize);
+
+let frames = 0;
+function frame() {
+  resize();
+  if (!shot && spinEl.checked) orbit.theta += 0.25;
+  explodeT += (explodeTarget - explodeT) * (shot ? 1 : 0.12);
+  for (const m of parts) m.position.copy(m.userData.explode).multiplyScalar(explodeT);
+  renderer.render(scene, activeCamera());
+  frames++;
+  window.__ready = frames > 2;
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
