@@ -294,11 +294,12 @@ def head_parts():
     # head opening + ledge + two side bosses
     ow, oh = BOX_W - 2 * PLATE_MARGIN, BOX_H - 2 * PLATE_MARGIN
     opening = box_at([ow, WALL + 2, oh], [0, y_in + WALL / 2 + 0.5, BOX_H / 2])
-    ledge = difference(box_at([ow + 2 * LEDGE, LEDGE, oh + 2 * LEDGE], [0, y_in - LEDGE / 2, BOX_H / 2]),
-                       box_at([ow - 2 * LEDGE, LEDGE + 2, oh - 2 * LEDGE], [0, y_in - LEDGE / 2, BOX_H / 2]))
+    # (ledge and bosses reach 1 mm into the back wall so the union is a real overlap)
+    ledge = difference(box_at([ow + 2 * LEDGE, LEDGE + 1, oh + 2 * LEDGE], [0, y_in - LEDGE / 2 + 0.5, BOX_H / 2]),
+                       box_at([ow - 2 * LEDGE, LEDGE + 4, oh - 2 * LEDGE], [0, y_in - LEDGE / 2 + 0.5, BOX_H / 2]))
     bosses, boss_holes = [], []
     for bx, bz in head_hole_points():
-        bosses.append(box_at([BOSS, BOSS + LEDGE, BOSS], [bx, y_in - (BOSS + LEDGE) / 2, bz]))
+        bosses.append(box_at([BOSS, BOSS + LEDGE + 1, BOSS], [bx, y_in - (BOSS + LEDGE) / 2 + 0.5, bz]))
         h = cyl(M4_TAP_D / 2, BOSS + LEDGE + 1, 0)
         h.apply_transform(rotation_matrix(math.radians(90), [1, 0, 0]))  # +Z -> -Y
         h.apply_translation([bx, y_in + 0.5, bz])
@@ -323,7 +324,7 @@ def head_parts():
         boss_holes.append(h)
 
     # button bezels, through holes, switch pockets
-    bezel = cyl(BEZEL_D / 2, BEZEL_H, 0)
+    bezel = cyl(BEZEL_D / 2, BEZEL_H + 1, -1)          # 1 mm into the panel: real overlap, not a touch
     through = cyl(CAP_HOLE_D / 2, WALL + BEZEL_H + 2, -WALL - 1)
     spocket = box_at([SWITCH_POCKET, SWITCH_POCKET, SWITCH_POCKET_DEPTH + 1],
                      [0, 0, -WALL + SWITCH_POCKET_DEPTH / 2 - 0.5])
@@ -426,6 +427,18 @@ def stl_b64(mesh):
     return base64.b64encode(mesh.export(file_type="stl")).decode("ascii")
 
 
+def finalize(mesh):
+    """Quantise to float32 (what STL/3MF store), merge coincident vertices with manifold
+    and drop the slivers that collapse, so the exported file is exactly what was checked."""
+    import manifold3d as m3d
+    mm = m3d.Mesh(vert_properties=np.asarray(mesh.vertices, np.float32), tri_verts=np.asarray(mesh.faces, np.uint32))
+    mm.merge()
+    out = m3d.Manifold(mm).to_mesh()
+    clean = trimesh.Trimesh(np.asarray(out.vert_properties)[:, :3].astype(np.float64), np.asarray(out.tri_verts), process=False)
+    clean.update_faces(clean.nondegenerate_faces())
+    return clean
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     T = head_transform()
@@ -459,9 +472,14 @@ def main():
              ("board_pins", pins, PIN_COLOR, plate_explode)]
     parts += [(f"cap_{i}", m, c, (fr[:3, :3] @ [0, 0, 1] * 14).tolist()) for i, (m, c, fr) in enumerate(caps)]
 
-    for name, mesh, _, _ in parts:
+    parts = [(n, finalize(m), c, e) for n, m, c, e in parts]
+    body, plate = parts[0][1], parts[1][1]
+    cap = finalize(cap)
+    for name, mesh, _, _ in parts + [("cap", cap, None, None)]:
         assert mesh.is_watertight, f"{name} is not watertight"
         assert mesh.is_volume, f"{name} is not a valid volume"
+        if name in ("body", "back_plate", "cap"):
+            assert mesh.body_count == 1, f"{name} is {mesh.body_count} separate shells, expected one solid"
 
     # fit checks: the board envelope must not collide with the body or the plate
     for name, other in (("body", body), ("plate", plate)):
@@ -470,9 +488,9 @@ def main():
             assert hit.is_empty or hit.volume < 0.05, f"{bname} collides with {name}: {hit.volume:.2f} mm3 at {hit.bounds}"
     print("fit check: board and pins clear the body and the plate")
 
-    body.export(os.path.join(OUT, "joystick_body.stl"))
-    plate.export(os.path.join(OUT, "joystick_back_plate.stl"))
-    cap.export(os.path.join(OUT, "joystick_button_cap.stl"))
+    for name, mesh in (("joystick_body", body), ("joystick_back_plate", plate), ("joystick_button_cap", cap)):
+        mesh.export(os.path.join(OUT, name + ".stl"))
+        mesh.export(os.path.join(OUT, name + ".3mf"))
     trimesh.util.concatenate([board, pins]).export(os.path.join(OUT, "pro_micro_mockup.stl"))
     assembly = trimesh.util.concatenate([m for n, m, _, _ in parts if not n.startswith("board")])
     assembly.export(os.path.join(OUT, "joystick_assembly.stl"))
