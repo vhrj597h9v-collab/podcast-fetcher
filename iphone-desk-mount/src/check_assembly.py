@@ -56,7 +56,7 @@ def main():
     clamp = load('clamp_body')
     cl = rot(clamp, [1, 0, 0], -90)                       # -> (use_x, use_z, ...) up to offsets
     b = cl.bounds
-    cl = tr(cl, [-(b[0][0] + 22.0), -(b[0][1] + b[1][1]) / 2, -(b[1][2] - (P.TOP_JAW_T + P.TOWER_H))])
+    cl = tr(cl, [-(b[0][0] + P.SPINE_T), -(b[0][1] + b[1][1]) / 2, -(b[1][2] - (P.TOP_JAW_T + P.TOWER_H))])
     assert abs(cl.bounds[0][2] + (P.THROAT + P.BOTTOM_JAW_T)) < 0.5, cl.bounds
     segd = rot(seg, [0, 0, 1], 45)
     z_mouth = P.TOP_JAW_T + P.TOWER_H
@@ -77,7 +77,7 @@ def main():
     assert abs(car.bounds[0][2] + P.TONGUE_DOWN) < 0.3 and abs(car.bounds[1][2] - P.HEADPLATE_Z1) < 0.3, car.bounds
     # 5a. boss in cradle socket.  cradle export: x centred (symmetric), y centred (-L/2..L/2), z >= 0
     cr = load('cradle')
-    cy = P.LIP_H + P.PAD_Y - P.SPINE_LEN / 2
+    cy = P.PAD_Y - (P.SPINE_LEN - 2 * P.LIP_H) / 2        # export frame is bbox-centred: y spans -LIP_H .. SPINE_LEN-LIP_H
     carz = rot(car, [0, 1, 0], -90)                                    # fork +x -> +z ; boss axis -> z axis through (0,0)
     carz = tr(carz, [0, 0, -(P.TONGUE_X1 + P.BOSS_LEN)])               # tip at z = 0
     depth = P.CRADLE_SOCKET_DEPTH - P.BOSS_SEAT_GAP
@@ -85,21 +85,33 @@ def main():
     boss = zslice(carz, 0.3, depth - 0.3)
     report("carrier boss in cradle socket @nominal seat", boss, cr, 3000, expect='(expect ~0 both)')
     report("  ... boss pulled back 1 mm", boss, tr(cr, [0, 0, 1.0]), 3000, expect='(expect gap ~0.087)')
-    # 5b. tongue between the head ears (fork frame aligned: un-rotate the head by -45)
+    # 5b. tongue between the head ears, LOCKED: rotated half a tooth pitch so the Hirth rings interlock, shifted
+    #     TONGUE_ENGAGED_OFFSET toward the toothed ear: flanks touch (gap ~0), crests keep 0.4 from the roots.
     hd = rot(head, [0, 0, 1], -P.FORK_ROT_DEG)
     za = P.HEAD_TOP + P.TILT_AXIS_H
-    tongue = zslice(tr(car, [0, 0, za]), za - P.TONGUE_DOWN + 0.5, za + 12.0)
-    report("carrier tongue between head ears", tongue, hd, 4000, expect='(expect gap >= 0.1 at the rings)')
+    car_half = rot(car, [0, 1, 0], 180.0 / P.HIRTH_N)
+    tongue = zslice(tr(car_half, [0, P.TONGUE_ENGAGED_OFFSET, za]), za - P.TONGUE_DOWN + 0.5, za + 12.0)
+    report("carrier tongue locked between head ears (Hirth engaged)", tongue, hd, 8000, expect='(expect ~0 interf, min gap ~0)')
+    tongue_free = zslice(tr(car_half, [0, P.TONGUE_ENGAGED_OFFSET + P.TONGUE_UNLOCK_SHIFT, za]), za - P.TONGUE_DOWN + 0.5, za + 12.0)
+    report("  ... tongue slid toward the far ear (unlocked)", tongue_free, hd, 8000, expect='(expect gap >= 0.3: teeth clear)')
+    tongue_cc = zslice(tr(car, [0, P.TONGUE_ENGAGED_OFFSET + P.TONGUE_UNLOCK_SHIFT, za]), za - P.TONGUE_DOWN + 0.5, za + 12.0)
+    report("  ... unlocked, crest on crest (worst case)", tongue_cc, hd, 8000, expect='(expect gap >= 0.3)')
+    # 5c. tilt nut in the tongue slot (0.3 clearance)
+    nut = load('square_nut_tilt')
+    nut = rot(nut, [1, 0, 0], 90)                                       # thread axis -> y (hinge direction)
+    nb_ = nut.bounds
+    nut = tr(nut, [-(nb_[0][0] + nb_[1][0]) / 2, -(nb_[0][1] + nb_[1][1]) / 2, -(nb_[0][2] + nb_[1][2]) / 2])  # centred on the hinge axis
+    report("tilt nut inside the tongue slot", nut, car, 3000, expect='(expect gap ~0.3)')
     # 6. slider on the plain spine.  slider export = frame rotated -90 about X: (x, z, -y); inverse +90: (x, -z, y)
     sl = rot(load('slider'), [1, 0, 0], 90)
     sb = sl.bounds
-    sl = tr(sl, [-(sb[0][0] + sb[1][0]) / 2, -sb[0][1] - P.SLIDER_HOOK, -sb[0][2] - (P.SLIDE_CLR + P.SLIDER_BACK_WALL)])
-    y0 = 150.0 - P.SPINE_LEN / 2
+    sl = tr(sl, [-(sb[0][0] + sb[1][0]) / 2, -sb[0][1] - P.JAW_LEAN, -sb[0][2] - (P.SLIDE_CLR + P.SLIDER_BACK_WALL)])
+    y0 = 150.0 - (P.SPINE_LEN - 2 * P.LIP_H) / 2
     spine_seg = cr.slice_plane([0, y0, 0], [0, 1, 0]).slice_plane([0, y0 + 20, 0], [0, -1, 0])
     report("slider on cradle spine", spine_seg, tr(sl, [0, y0 - 1.0, 0]), 3000, expect='(expect gap ~0.3)')
     # 7. ball in pad
     pad = load('swivel_pad')
-    r_cav = P.BALL_D / 2 + P.PAD_SOCKET_CLR; opening = P.BALL_D - 1.5
+    r_cav = P.BALL_D / 2 + P.PAD_SOCKET_CLR; opening = P.BALL_D - 2 * P.PAD_SNAP_OVERLAP
     zc = (P.PAD_H + 2.0) - math.sqrt(r_cav ** 2 - (opening / 2) ** 2)
     ball = tr(trimesh.creation.icosphere(subdivisions=4, radius=P.BALL_D / 2), [0, 0, zc])
     report("ball in pad socket", ball, pad, 3000, expect='(expect gap ~0.2)')

@@ -1,10 +1,12 @@
-"""Head: standard socket at the bottom (prints mouth-down like a pole segment), 45-deg flare to a wider cap,
-and a two-ear fork rotated 45 deg relative to the socket (the pole runs diamond-wise in the clamp, so this
-makes the phone face square to the desk edge).  Tilt lock = Tr8 thumbscrew through both ears + square nut in a
-diamond pocket on the thick ear; the carrier tongue's proud rings are clamped between the ears (friction)."""
+"""Head: standard socket at the bottom (prints mouth-down like a pole segment), 45-deg flare to a wider cap, and a
+two-ear fork rotated 45 deg relative to the socket (the pole runs diamond-wise in the clamp, so this makes the phone
+face square to the desk edge).  Tilt lock = Hirth ring on the knob-side ear's inner face; the carrier tongue (with
+the mating ring and a captured Tr10 nut) is pulled onto it by the tilt thumbscrew -> positive 12-degree index,
+zero play.  The far ear only guides the screw shank."""
 import cadquery as cq
 import params as P
 from parts.pole_segment import _loft
+from lib import shapes as S
 
 
 def build() -> cq.Workplane:
@@ -32,22 +34,16 @@ def build() -> cq.Workplane:
         box = cq.Workplane("XY").box(P.EAR_W, t, za - top, centered=(True, True, False)).translate((0, (y0 + y1) / 2, top))
         cyl = cq.Workplane("XZ").circle(P.EAR_TOP_R).extrude(t / 2, both=True).translate((0, (y0 + y1) / 2, za))
         return box.union(cyl)
-    ear_a = ear(-P.EAR_GAP / 2 - P.EAR_T, -P.EAR_GAP / 2)         # plain ear (knob side)
-    ear_b = ear(P.EAR_GAP / 2, P.EAR_GAP / 2 + P.EAR_NUT_T)        # nut ear
-    fork = ear_a.union(ear_b)
-    # hinge hole through both ears
-    hole = cq.Workplane("XZ").circle(P.TS_HOLE / 2).extrude(60, both=True).translate((0, 0, za))
+    near = ear(-P.EAR_GAP / 2 - P.EAR_T, -P.EAR_GAP / 2)          # knob side, carries the Hirth ring
+    far = ear(P.EAR_GAP / 2, P.EAR_GAP / 2 + P.EAR_T)
+    fork = near.union(far)
+    # Hirth ring on the near ear's inner face (y = -EAR_GAP/2), teeth pointing +y into the gap
+    ring = (S.hirth_ring(P.HIRTH_N, P.HIRTH_R0, P.HIRTH_R1, P.HIRTH_SINK, P.HIRTH_INCLUDED_DEG, P.HIRTH_TRUNC)
+            .rotate((0, 0, 0), (1, 0, 0), -90)                    # +Z -> +Y
+            .translate((0, -P.EAR_GAP / 2, za)))
+    fork = fork.union(ring)
+    # hinge hole through both ears (10.8: knob-side clearance; far ear guides the Tr10 shank)
+    hole = cq.Workplane("XZ").circle(P.TILT_HOLE_NEAR / 2).extrude(60, both=True).translate((0, 0, za))
     fork = fork.cut(hole)
-    # diamond nut pocket on the outer face of the nut ear (axis y, horizontal in print -> 45-deg roof)
-    s = P.SQ_NUT + 2 * P.SQ_NUT_CLR
-    depth = P.SQ_NUT_T + 0.4
-    y_out = P.EAR_GAP / 2 + P.EAR_NUT_T
-    pocket = (cq.Workplane("XZ").rect(s, s).extrude(depth + 1.0).rotate((0, 0, 0), (0, 1, 0), 45)
-              .translate((0, y_out + 1.0 - 0.0, za)))
-    # Workplane("XZ") extrudes toward -Y; we want the pocket to go from y_out inward: shift so it spans [y_out-depth, y_out+1]
-    pocket = cq.Workplane("XZ").workplane(offset=-(y_out + 1.0)).rect(s, s).extrude(depth + 1.0)  # extrude toward -Y from y_out+1
-    pocket = pocket.rotate((0, 0, 0), (0, 1, 0), 45).translate((0, 0, za))
-    fork = fork.cut(pocket)
-    # small 45-deg fillet-like chamfers where the ears meet the cap are not needed (ears sit on the flat cap).
     fork = fork.rotate((0, 0, 0), (0, 0, 1), P.FORK_ROT_DEG)
     return head.union(fork)

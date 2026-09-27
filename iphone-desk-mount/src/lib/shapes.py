@@ -1,6 +1,7 @@
 """Reusable CadQuery shape helpers (all mm, axis conventions noted per function)."""
 from __future__ import annotations
 
+import math
 import cadquery as cq
 
 
@@ -44,3 +45,28 @@ def chamfer_all_vertical_edges(wp: cq.Workplane, c: float) -> cq.Workplane:
         return wp.edges("|Z").chamfer(c)
     except Exception:
         return wp
+
+
+def hirth_ring(n: int, r0: float, r1: float, sink: float = 0.2, included_deg: float = 90.0, trunc: float = 0.3) -> cq.Workplane:
+    """TRUE Hirth ring: n radial wedge teeth whose base width equals the pitch 2*pi*r/n at EVERY radius (no root
+    flats), so two identical rings interlock at a half-pitch offset with flank-to-flank contact -> self-centring,
+    zero rotational play.  Geometric tooth height h(r) = (pitch/2) / tan(included/2); the crest is truncated by
+    `trunc` so that, when the flanks touch, each crest keeps `trunc` of clearance from the mating root (crest/root
+    relief, as in a machined Hirth coupling).  Teeth stand on the XY plane pointing +Z, centred on the origin,
+    tooth k centred at angle k*360/n from +X; bases sunk `sink` below z=0."""
+    t = math.tan(math.radians(included_deg / 2))
+    def prof(r):
+        b = 2 * math.pi * r / n + 0.02          # tiny overlap so neighbours fuse
+        h = (b / 2) / t
+        w_top = trunc * t                        # half-width of the flat crest
+        return [(-b / 2, -sink), (b / 2, -sink), (w_top, h - trunc), (-w_top, h - trunc)]
+    tooth = (cq.Workplane("YZ").workplane(offset=r0).polyline(prof(r0)).close()
+             .workplane(offset=r1 - r0).polyline(prof(r1)).close().loft(ruled=True))
+    teeth = tooth
+    for k in range(1, n):
+        teeth = teeth.union(tooth.rotate((0, 0, 0), (0, 0, 1), 360.0 * k / n))
+    return teeth
+
+
+def hirth_height(n: int, r: float, included_deg: float = 90.0) -> float:
+    return (math.pi * r / n) / math.tan(math.radians(included_deg / 2))

@@ -65,11 +65,13 @@ def main(only: str | None = None) -> int:
         rep['build_s'] = round(time.time() - t, 1)
         rep['bed_contact_mm2'] = round(V.bed_contact_area(mesh), 1)
         reports.append(rep)
-        flag = 'OK ' if rep['watertight'] and rep['bodies'] == 1 else 'BAD'
+        # a part must stand on a real face, not an edge: >= 15 % of its footprint bbox and >= 200 mm2
+        rep['bed_ok'] = rep['bed_contact_mm2'] >= max(100.0, 0.15 * rep['size_x'] * rep['size_y'])
+        flag = 'OK ' if rep['watertight'] and rep['bodies'] == 1 and rep['bed_ok'] else 'BAD'
         if flag == 'BAD':
             ok = False
         print(f"[{flag}] {m:18s} {rep['size_x']:6.1f} x {rep['size_y']:6.1f} x {rep['size_z']:6.1f} mm  "
-              f"vol {rep['volume_mm3']/1000:7.1f} cm3  faces {rep['faces']:6d}  bodies {rep['bodies']}  {rep['build_s']}s")
+              f"vol {rep['volume_mm3']/1000:7.1f} cm3  faces {rep['faces']:6d}  bodies {rep['bodies']}  bed {rep['bed_contact_mm2']:6.0f} mm2  {rep['build_s']}s")
     if only:
         return 0 if ok else 1
 
