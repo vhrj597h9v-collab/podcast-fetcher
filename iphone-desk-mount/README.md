@@ -7,6 +7,8 @@ supports and no hardware**: every screw, nut and joint is printed.
 
 - `stl/ALL_PARTS_ONE_PLATE.stl` — the whole kit laid out on the plate (244 × 244 mm footprint, tallest part 225 mm).
 - `stl/<part>.stl` — each part alone, already in its print orientation (Z up, sitting on Z = 0).
+- `stl/ASSEMBLED_PREVIEW.stl` — the parts composed in their assembled positions on a 30 mm desk, for viewing only
+  (`assembled_preview.png` and `plate_preview.png` are renders of the assembly and of the plate).
 - `src/` — CadQuery source that generates everything (`python3 build.py`), plus `check_assembly.py`, which places the
   exported STLs in their mating positions and measures every clearance and interference.
 
@@ -43,9 +45,9 @@ wedge or a preloaded toothed coupling, and nothing relies on a clearance fit for
 | 1 | `square_nut_tilt` | flat | 18 mm square, Tr10×2.5, lives inside the carrier tongue |
 | 1 | `square_nut` | flat | 16 mm square, Tr8×2.5, lives inside the slider |
 
-Solid volume of the kit is 2.17 L. Sliced with 4 walls and 15–25 % infill expect roughly **1.2–1.4 kg of PETG**; the
-clamp body is about 450–600 g of that and the three pole segments about 200 g each (they are almost all wall). Plan on
-a fresh 1 kg spool plus a partial, or print the plate as two jobs.
+Solid volume of the kit is 2.17 L. Estimated printed mass: about **1.35 kg of PETG with 4 walls and 20 % infill**
+(clamp body ≈ 440 g, three pole segments ≈ 175 g each, head ≈ 120 g), or ≈ 1.85 kg with 6 walls and 30 %. Plan on a
+fresh 1 kg spool plus a partial, or print the plate as two jobs (the slicer can split the individual STLs any way you like).
 
 ## Print settings (PETG, 0.4 mm nozzle)
 
