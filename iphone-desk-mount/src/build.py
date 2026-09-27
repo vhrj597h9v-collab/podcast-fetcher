@@ -98,7 +98,9 @@ def main(only: str | None = None) -> int:
     if not problems:
         print(f'  plate layout OK: inside {V.PLATE_XY:.0f}x{V.PLATE_XY:.0f}, all footprint gaps >= {V.MIN_GAP:.0f} mm, all parts on the bed')
     with open(os.path.join(STL_DIR, 'build_report.json'), 'w') as f:
-        json.dump(dict(parts=reports, plate_problems=problems,
+        # timings vary run to run and would churn the committed report
+        reports_out = [{k: v for k, v in r.items() if k != 'build_s'} for r in reports]
+        json.dump(dict(parts=reports_out, plate_problems=problems,
                        plate_envelope=[float(v) for v in ext]), f, indent=1)
     return 0 if ok else 1
 
