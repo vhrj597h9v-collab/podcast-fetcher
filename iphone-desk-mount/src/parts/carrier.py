@@ -11,7 +11,7 @@ from lib import shapes as S
 def build_fork_frame() -> cq.Workplane:
     x0, x1 = P.TONGUE_X0, P.TONGUE_X1
     t = P.TONGUE_T
-    box = cq.Workplane("XY").box(x1 - x0, t, P.HEADPLATE_Z0 + P.TONGUE_DOWN, centered=(True, True, False)).translate(((x0 + x1) / 2, 0, -P.TONGUE_DOWN))
+    box = cq.Workplane("XY").box(x1 - x0, t, P.HEADPLATE_Z0, centered=(True, True, False)).translate(((x0 + x1) / 2, 0, 0))   # from the axis up: the cylinder makes a TRUE half-round end
     cyl = cq.Workplane("XZ").circle(P.TONGUE_DOWN).extrude(t / 2, both=True)
     clip = cq.Workplane("XY").box(x1 - x0, t + 2, 200, centered=(True, True, True)).translate(((x0 + x1) / 2, 0, 0))
     tongue = box.union(cyl).intersect(clip)
@@ -26,7 +26,7 @@ def build_fork_frame() -> cq.Workplane:
     slot = cq.Workplane("XY").box(sw, st, P.TONGUE_SLOT_TOP + P.TONGUE_DOWN + 2.0, centered=(True, True, False)).translate((0, 0, -P.TONGUE_DOWN - 2.0))
     tongue = tongue.cut(slot)
     # hinge bore
-    tongue = tongue.cut(cq.Workplane("XZ").circle(P.TILT_HOLE_NEAR / 2).extrude(30, both=True))
+    tongue = tongue.cut(S.gabled_hole_xz(P.TILT_HOLE_NEAR, 60))          # gable roof: horizontal in print
     # head plate
     hp = cq.Workplane("XY").box(x1 - x0, P.HEADPLATE_W, P.HEADPLATE_Z1 - P.HEADPLATE_Z0, centered=(True, True, False)).translate(((x0 + x1) / 2, 0, P.HEADPLATE_Z0))
     body = tongue.union(hp)
@@ -35,7 +35,7 @@ def build_fork_frame() -> cq.Workplane:
     boss = boss.edges().filter(lambda e: abs(e.tangentAt().x) > 0.5).fillet(1.5)
     body = body.union(boss.translate((x1, 0, P.BOSS_Z)))
     # retaining-screw bore along x through head plate and boss
-    bore = cq.Workplane("YZ").circle(P.TS_HOLE / 2).extrude(x1 + P.BOSS_LEN - x0 + 2).translate((x0 - 1, 0, P.BOSS_Z))
+    bore = cq.Workplane("YZ").circle(P.RETAIN_HOLE / 2).extrude(x1 + P.BOSS_LEN - x0 + 2).translate((x0 - 1, 0, P.BOSS_Z))
     return body.cut(bore)
 
 

@@ -44,6 +44,7 @@ def build() -> cq.Workplane:
     # influence on both wedge fits.
     seg = seg.faces("<Z").chamfer(1.0)
     # 6 mm cross hole through both socket walls just above the seated spigot tip: push a rod through to release the wedge
-    knock = cq.Workplane("YZ").circle(P.KNOCK_HOLE_D / 2).extrude(P.POLE_OUTER + 2, both=True).translate((0, 0, P.KNOCK_HOLE_Z))
+    knock = (cq.Workplane("YZ").slot2D(P.KNOCK_SLOT_Z1 - P.KNOCK_SLOT_Z0, P.KNOCK_SLOT_W, angle=90).extrude(P.POLE_OUTER + 2, both=True)
+             .translate((0, 0, (P.KNOCK_SLOT_Z0 + P.KNOCK_SLOT_Z1) / 2)))
     seg = seg.cut(knock)
     return seg

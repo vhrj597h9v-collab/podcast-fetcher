@@ -53,6 +53,13 @@ def build_use_coords() -> cq.Workplane:
     for sy in (-1, 1):
         rail = cq.Workplane("XY").box(P.PAD_LEN - 4.0, P.PAD_RAIL_W, P.PAD_RAIL_H + 0.01, centered=(False, True, False)).translate((2.0, sy * P.PAD_RAIL_Y, -P.PAD_RAIL_H))
         body = body.union(rail)
+    # cross rails at both pad ends -> contact FRAME (defined contact lines fore/aft as well as side to side)
+    for x0 in (2.0, P.PAD_LEN - 2.0 - P.PAD_FRAME_W):
+        rail = cq.Workplane("XY").box(P.PAD_FRAME_W, 2 * P.PAD_RAIL_Y + P.PAD_RAIL_W, P.PAD_RAIL_H + 0.01, centered=(False, True, False)).translate((x0, 0, -P.PAD_RAIL_H))
+        body = body.union(rail)
+    # release hole along use-Y through the tower at the socket floor (vertical hole in the side print)
+    zk = P.TOP_JAW_T + P.CLAMP_SOCKET_DEPTH - (P.EXT_TAPER_LEN - P.CLAMP_SEAT_GAP) + P.CLAMP_KNOCK_D / 2 + 0.5
+    body = body.cut(cq.Workplane("XZ").circle(P.CLAMP_KNOCK_D / 2).extrude(W, both=True).translate((P.TOWER_CENTER_X, 0, zk)))
     # 45-deg lead-in on the diamond socket mouth
     m = P.CLAMP_SOCKET_MOUTH
     ch = P.CLAMP_MOUTH_CHAMFER

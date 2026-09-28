@@ -12,8 +12,11 @@ def build() -> cq.Workplane:
     zc = h - d
     pad = cq.Workplane("XY").circle(P.PAD_D / 2).extrude(h).faces(">Z").edges().chamfer(1.5).faces("<Z").edges().chamfer(0.8)
     pad = pad.cut(cq.Workplane("XY").sphere(r_cav).translate((0, 0, zc)))
-    # 4 radial flex slots around the opening
+    # annular relief groove so the retaining lip is a thin flexible ring, then radial slots split it into petals
+    groove = cq.Workplane("XY").circle(P.PAD_RELIEF_R1).circle(P.PAD_RELIEF_R0).extrude(P.PAD_RELIEF_DEPTH + 1).translate((0, 0, h - P.PAD_RELIEF_DEPTH))
+    pad = pad.cut(groove)
+    # radial flex slots around the opening
     for i in range(P.PAD_SLOTS):
-        slot = cq.Workplane("XY").box(12.0, 1.0, 7.0, centered=(False, True, False)).translate((opening / 2 - 4.0, 0, h - 6.0))
+        slot = cq.Workplane("XY").box(P.PAD_RELIEF_R1 - opening / 2 + 4.0, 1.0, P.PAD_RELIEF_DEPTH, centered=(False, True, False)).translate((opening / 2 - 3.0, 0, h - P.PAD_RELIEF_DEPTH))
         pad = pad.cut(slot.rotate((0, 0, 0), (0, 0, 1), 360.0 * i / P.PAD_SLOTS + 30))
     return pad

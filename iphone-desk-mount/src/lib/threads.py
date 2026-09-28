@@ -18,9 +18,9 @@ from __future__ import annotations
 import math
 import cadquery as cq
 
-DEPTH_FRACTION = 0.45        # thread depth / pitch (ACME = 0.5; a bit shallower prints stronger crests)
-FLANK_HALF_ANGLE_DEG = 15.0  # 30 deg included angle, ACME-like
-CREST_FRACTION = 0.25        # crest flat width / pitch (bolt).  Root flat = crest + 2*depth*tan(flank)
+DEPTH_FRACTION = 0.35        # thread depth / pitch (shallow: 30-deg flanks print with a 0.35 mm step per 0.2 layer)
+FLANK_HALF_ANGLE_DEG = 30.0  # 60 deg included angle: flanks print cleanly (a 15-deg flank is a 75-deg overhang)
+CREST_FRACTION = 0.15        # crest flat width / pitch (bolt).  Root flat = crest + 2*depth*tan(flank)
                              # (0.25 balances bolt and nut ridge widths once the nut is grown by the clearance)
 ROOT_SINK = 0.30             # how far the ridge root is buried inside the core (avoids coincident faces)
 

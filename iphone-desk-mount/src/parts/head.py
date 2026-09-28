@@ -43,7 +43,6 @@ def build() -> cq.Workplane:
             .translate((0, -P.EAR_GAP / 2, za)))
     fork = fork.union(ring)
     # hinge hole through both ears (10.8: knob-side clearance; far ear guides the Tr10 shank)
-    hole = cq.Workplane("XZ").circle(P.TILT_HOLE_NEAR / 2).extrude(60, both=True).translate((0, 0, za))
-    fork = fork.cut(hole)
+    fork = fork.cut(S.gabled_hole_xz(P.TILT_HOLE_NEAR, 120).translate((0, 0, za)))   # gable roof: horizontal in print
     fork = fork.rotate((0, 0, 0), (0, 0, 1), P.FORK_ROT_DEG)
     return head.union(fork)

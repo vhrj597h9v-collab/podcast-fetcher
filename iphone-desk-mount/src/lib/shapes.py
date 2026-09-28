@@ -70,3 +70,13 @@ def hirth_ring(n: int, r0: float, r1: float, sink: float = 0.2, included_deg: fl
 
 def hirth_height(n: int, r: float, included_deg: float = 90.0) -> float:
     return (math.pi * r / n) / math.tan(math.radians(included_deg / 2))
+
+
+def gabled_hole_xz(diameter: float, length: float) -> cq.Workplane:
+    """Horizontal hole along Y (through length, centred) with a 45-deg gable toward +Z so its roof prints without a
+    flat ceiling.  Translate to the axis position yourself."""
+    r = diameter / 2
+    c = r * math.cos(math.radians(45))
+    circ = cq.Workplane("XZ").circle(r).extrude(length / 2, both=True)
+    gable = cq.Workplane("XZ").polyline([(-c, c), (0, r * math.sqrt(2)), (c, c)]).close().extrude(length / 2, both=True)
+    return circ.union(gable)

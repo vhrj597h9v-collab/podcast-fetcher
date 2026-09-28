@@ -58,12 +58,12 @@ def main():
     b = cl.bounds
     cl = tr(cl, [-(b[0][0] + P.SPINE_T), -(b[0][1] + b[1][1]) / 2, -(b[1][2] - (P.TOP_JAW_T + P.TOWER_H))])
     assert abs(cl.bounds[0][2] + (P.THROAT + P.BOTTOM_JAW_T)) < 0.5, cl.bounds
-    segd = rot(seg, [0, 0, 1], 45)
+    arm = load('arm_lower')                                        # its base is already diamond vs its tube/fork
     z_mouth = P.TOP_JAW_T + P.TOWER_H
-    segd = tr(segd, [P.TOWER_CENTER_X, 0, z_mouth - (P.EXT_TAPER_LEN - P.CLAMP_SEAT_GAP)])
-    low = zslice(segd, segd.bounds[0][2] + 0.5, z_mouth - 0.5)
-    report("segment external taper in clamp socket @nominal seat", low, cl, expect='(expect ~0 both)')
-    report("  ... segment lifted 1 mm", low, tr(cl, [0, 0, -1.0]), expect='(expect gap ~0.044)')
+    arm = tr(arm, [P.TOWER_CENTER_X, 0, z_mouth - (P.EXT_TAPER_LEN - P.CLAMP_SEAT_GAP)])
+    low = zslice(arm, arm.bounds[0][2] + 0.5, z_mouth - 0.5)
+    report("arm_lower base taper in clamp socket @nominal seat", low, cl, expect='(expect ~0 both)')
+    report("  ... arm lifted 1 mm", low, tr(cl, [0, 0, -1.0]), expect='(expect gap ~0.044)')
     # 4. nut block in its pocket
     nb = load('nut_block')
     nb = tr(nb, [P.SCREW_X, 0, -P.THROAT - P.NUT_BLOCK_H])
@@ -102,32 +102,54 @@ def main():
     nb_ = nut.bounds
     nut = tr(nut, [-(nb_[0][0] + nb_[1][0]) / 2, -(nb_[0][1] + nb_[1][1]) / 2, -(nb_[0][2] + nb_[1][2]) / 2])  # centred on the hinge axis
     report("tilt nut inside the tongue slot", nut, car, 3000, expect='(expect gap ~0.3)')
+    # 5d. elbow: tongue (flipped, spigot up) between the arm_lower ears, locked at the half-pitch offset
+    za_arm = P.ARM_LOWER_H - P.ELBOW_EAR_TOP_R                       # hinge axis height in arm_lower's frame
+    armf = load('arm_lower')
+    tg = rot(load('elbow_tongue'), [1, 0, 0], 180)                   # spigot up, tongue down, ring on -y
+    tb = tg.bounds
+    # tongue axis: its hinge hole centre was at z = SPIGOT_LEN + FLARE2 + TONGUE_UP in print; after the flip it is at -that
+    z_axis_print = P.SPIGOT_LEN + P.ELBOW_FLARE2_H + P.ELBOW_TONGUE_UP
+    tg = tr(tg, [0, 0, z_axis_print])                                # hinge axis at the origin
+    tg = rot(tg, [0, 1, 0], 180.0 / P.ELBOW_HIRTH_N)                 # half-pitch: teeth interlock
+    tg = tr(tg, [0, P.ELBOW_TONGUE_ENGAGED_OFFSET, za_arm])          # onto arm_lower's axis, locked position
+    tongue_e = zslice(tg, za_arm - P.ELBOW_TONGUE_R + 0.5, za_arm + 20.0)
+    report("elbow tongue locked in arm_lower fork (Hirth engaged)", tongue_e, armf, 8000, expect='(expect ~0 interf, min gap ~0)')
+    tongue_u = zslice(tr(tg, [0, P.ELBOW_TONGUE_UNLOCK_SHIFT, 0]), za_arm - P.ELBOW_TONGUE_R + 0.5, za_arm + 20.0)
+    report("  ... elbow tongue slid toward the far ear (unlocked)", tongue_u, armf, 8000, expect='(expect gap >= 0.3)')
+    en = rot(load('elbow_nut'), [1, 0, 0], 90); eb = en.bounds
+    en = tr(en, [-(eb[0][0] + eb[1][0]) / 2, -(eb[0][1] + eb[1][1]) / 2, -(eb[0][2] + eb[1][2]) / 2])
+    # nut sits on the tongue's axis inside its slot: build the tongue in print frame for this check
+    tg_print = load('elbow_tongue')
+    report("elbow nut inside the tongue slot", tr(en, [0, 0, z_axis_print]), tg_print, 3000, expect='(expect gap ~0.3)')
     # 6. slider on the plain spine.  slider export = frame rotated -90 about X: (x, z, -y); inverse +90: (x, -z, y)
     sl = rot(load('slider'), [1, 0, 0], 90)
     sb = sl.bounds
-    sl = tr(sl, [-(sb[0][0] + sb[1][0]) / 2, -sb[0][1] - P.JAW_LEAN, -sb[0][2] - (P.SLIDE_CLR + P.SLIDER_BACK_WALL)])
-    y0 = 150.0 - (P.SPINE_LEN - 2 * P.LIP_H) / 2
+    sl = tr(sl, [-(sb[0][0] + sb[1][0]) / 2, -sb[0][1], -sb[0][2] - (P.SLIDE_CLR + P.SLIDER_BACK_WALL)])   # frame: body y 0..L
+    y0 = 120.0 - (P.SPINE_LEN - 2 * P.LIP_H) / 2
     spine_seg = cr.slice_plane([0, y0, 0], [0, 1, 0]).slice_plane([0, y0 + 20, 0], [0, -1, 0])
     report("slider on cradle spine", spine_seg, tr(sl, [0, y0 - 1.0, 0]), 3000, expect='(expect gap ~0.3)')
+    # portrait Pro Max with a case (165 x 14): jaw foot at 165 + 16.2 -> the channel must still be on the spine
+    foot = 165.0 + 2 * 14.0 * math.tan(math.radians(90 - P.JAW_INCLINE_DEG))
+    print(f"   slider at max phone: jaw foot {foot:.1f} from the phone foot, channel {foot - P.SLIDER_LEN:.1f}..{foot + P.SLIDER_JAW_WALL:.1f}, spine ends at {P.SPINE_LEN - P.LIP_H:.0f} -> engaged {min(P.SPINE_LEN - P.LIP_H, foot + P.SLIDER_JAW_WALL) - (foot - P.SLIDER_LEN):.1f} mm")
     # 7. ball in pad
     pad = load('swivel_pad')
     r_cav = P.BALL_D / 2 + P.PAD_SOCKET_CLR; opening = P.BALL_D - 2 * P.PAD_SNAP_OVERLAP
     zc = (P.PAD_H + 2.0) - math.sqrt(r_cav ** 2 - (opening / 2) ** 2)
     ball = tr(trimesh.creation.icosphere(subdivisions=4, radius=P.BALL_D / 2), [0, 0, zc])
     report("ball in pad socket", ball, pad, 3000, expect='(expect gap ~0.2)')
-    # 8. stack-up
-    seg1_bottom = z_mouth - (P.EXT_TAPER_LEN - P.CLAMP_SEAT_GAP)
-    tops = []
-    bottom = seg1_bottom
-    for i in range(P.SEG_COUNT):
-        top = bottom + L; tops.append((bottom, top)); bottom = top - P.SPIGOT_LEN + P.SEAT_GAP
-    head_bottom = bottom
+    # 8. stack-up (arm straight up)
+    arm_bottom = z_mouth - (P.EXT_TAPER_LEN - P.CLAMP_SEAT_GAP)
+    elbow_axis = arm_bottom + za_arm
+    spigot_base = elbow_axis + P.ELBOW_TONGUE_UP + P.ELBOW_FLARE2_H
+    seg_bottom = spigot_base + P.SEAT_GAP
+    seg_top = seg_bottom + P.SEG_LEN
+    head_bottom = seg_top - P.SPIGOT_LEN + P.SEAT_GAP
     axis = head_bottom + P.HEAD_TOP + P.TILT_AXIS_H
     phone_c = axis + P.BOSS_Z
-    per_seg = L - P.SPIGOT_LEN + P.SEAT_GAP
-    print(f"\nSTACK-UP (desk top = 0 mm): clamp socket mouth {z_mouth:.0f}; segments {[(round(a),round(b)) for a,b in tops]}; "
-          f"head base {head_bottom:.0f}; tilt axis {axis:.0f}; phone centre ~{phone_c:.0f} mm = {phone_c/25.4:.1f} in "
-          f"(3 segments) | {phone_c-per_seg:.0f} mm (2) | {phone_c-2*per_seg:.0f} mm (1)")
+    horiz = (phone_c - elbow_axis)
+    print(f"\nSTACK-UP (desk top = 0 mm): clamp mouth {z_mouth:.0f}; arm_lower {arm_bottom:.0f}..{arm_bottom + P.ARM_LOWER_H:.0f}, elbow axis {elbow_axis:.0f}; "
+          f"segment {seg_bottom:.0f}..{seg_top:.0f}; head base {head_bottom:.0f}; tilt axis {axis:.0f}; phone centre ~{phone_c:.0f} mm = {phone_c/25.4:.1f} in straight up | "
+          f"elbow at 90 deg: phone ~{elbow_axis + P.BOSS_Z:.0f} mm high, ~{horiz - P.BOSS_Z:.0f} mm out from the elbow")
 
 
 if __name__ == '__main__':
